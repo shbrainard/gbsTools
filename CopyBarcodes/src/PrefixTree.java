@@ -3,7 +3,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-public class HuffmanTree {
+public class PrefixTree {
 
 	private static class Node {
 		private final List<NodeLink> children;
@@ -33,7 +33,7 @@ public class HuffmanTree {
 	private final int OVERHANG_LEN;
 	private char[] fuzzyMatchStr;
 	
-	public HuffmanTree(boolean includeOverhangs) {
+	public PrefixTree(boolean includeOverhangs) {
 		if (includeOverhangs) {
 			overhangs.add("CAGC");
 			overhangs.add("CTGC");

@@ -31,7 +31,7 @@ public class CopyBarcodes {
 		String outputFileFwd = forwardFile.substring(0, forwardFile.lastIndexOf(".gz")) + ".barcoded.forward.gz";
 		
 		// load barcodes
-		HuffmanTree barcodes = new HuffmanTree(!retain);
+		PrefixTree barcodes = new PrefixTree(!retain);
 		String line = "";
 		InflaterInputStream iisFwd = new GZIPInputStream(
 				new FileInputStream(forwardFile));
@@ -145,7 +145,14 @@ public class CopyBarcodes {
 			}
 		}
 		long endTime = System.currentTimeMillis();
+		long duration = (endTime - startTime);
+		String timeStr;
+		if (duration > 60000) {
+			timeStr = duration / (60 * 1000) + " minutes";
+		} else {
+			timeStr = duration + " ms";
+		}
 		System.out.println("Finished, wrote " + nLines + ", skipped " 
-				+ nSkipped + ", fuzzed " + nFuzzed + " in " + (endTime - startTime) / (60 * 1000) + " minutes");
+				+ nSkipped + ", fuzzed " + nFuzzed + " in " + timeStr);
 	}
 }
