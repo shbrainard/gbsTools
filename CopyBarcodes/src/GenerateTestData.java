@@ -1,6 +1,7 @@
 import java.io.FileOutputStream;
 import java.util.zip.GZIPOutputStream;
 
+// Used for mocking out a data set to compare performance across different implementations
 public class GenerateTestData {
 	
 	static String[] barcodes = new String[] {"AAAA", "ACTG", "AGTCA", "GCTAC", "CTGACAGT", "TAGCG"};
