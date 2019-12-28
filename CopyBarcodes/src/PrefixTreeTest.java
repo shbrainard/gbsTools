@@ -1,10 +1,10 @@
 import org.junit.Test;
 
-public class HuffmanTreeTest {
+public class PrefixTreeTest {
 
 	@Test
 	public void testTree() throws Exception {
-		HuffmanTree tree = new HuffmanTree(true);
+		PrefixTree tree = new PrefixTree(true);
 		tree.addBarcode("CGA");
 		tree.addBarcode("GCAGCAGC");
 		
@@ -23,7 +23,7 @@ public class HuffmanTreeTest {
 	
 	@Test
 	public void testFastTree() throws Exception {
-		HuffmanTree tree = new HuffmanTree(false);
+		PrefixTree tree = new PrefixTree(false);
 		tree.addBarcode("CGA");
 		tree.addBarcode("GCAGCAGC");
 		
@@ -42,7 +42,7 @@ public class HuffmanTreeTest {
 	
 	@Test
 	public void testFuzz() throws Exception {
-		HuffmanTree tree = new HuffmanTree(true);
+		PrefixTree tree = new PrefixTree(true);
 		tree.addBarcode("CGA");
 		tree.addBarcode("GCA");
 		tree.addBarcode("GCT");

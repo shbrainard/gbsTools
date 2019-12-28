@@ -3,8 +3,15 @@ import java.io.BufferedWriter;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.FileReader;
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 import java.util.zip.InflaterInputStream;
@@ -12,6 +19,19 @@ import java.util.zip.InflaterInputStream;
 public class CopyBarcodes {
 
 	private static final int MIN_BARCODE_LEN = 4;
+	
+	private static class OutputStats {
+		final AtomicInteger nWritten = new AtomicInteger(0);
+		final AtomicInteger nFuzzed = new AtomicInteger(0);
+		final AtomicInteger nSkipped = new AtomicInteger(0);
+	}
+	
+	private static class Read {
+		String[] forwardLineSet = new String[4];
+		String[] reverseLineSet = new String[4];
+		int barcodeLen;
+		String fuzzedMatch = null;
+	}
 
 	public static void main(String[] args) throws Exception {
 		if (args.length < 3) {
@@ -31,7 +51,7 @@ public class CopyBarcodes {
 		String outputFileFwd = forwardFile.substring(0, forwardFile.lastIndexOf(".gz")) + ".barcoded.forward.gz";
 		
 		// load barcodes
-		HuffmanTree barcodes = new HuffmanTree(!retain);
+		PrefixTree barcodes = new PrefixTree(!retain);
 		String line = "";
 		InflaterInputStream iisFwd = new GZIPInputStream(
 				new FileInputStream(forwardFile));
@@ -46,7 +66,7 @@ public class CopyBarcodes {
 				}
 			}
 		}
-		long nSkipped = 0, nLines = 0, nFuzzed = 0;
+		OutputStats stats = new OutputStats();
 		
 		// This inner loop gets called half a billion times, so there are some
 		// unusual optimizations to minimize object allocations (looping & calling charAt vs substring, for instance)
@@ -59,93 +79,158 @@ public class CopyBarcodes {
 				BufferedReader forward = new BufferedReader(new InputStreamReader(iisFwd));
 				BufferedReader reverse = new BufferedReader(new InputStreamReader(iisRev));) {
 
-			String forwardLine = "";
-			String[] forwardLineSet = new String[4];
-			String[] reverseLineSet = new String[4];
-			
-			while ((forwardLine = forward.readLine()) != null) {
-				// read sequence id line, barcode line, delimiter, and quality
-				forwardLineSet[0] = forwardLine;
-				reverseLineSet[0] = reverse.readLine();
-				forwardLineSet[1] = forward.readLine();
-				reverseLineSet[1] = reverse.readLine();
-				forwardLineSet[2] = forward.readLine();
-				reverseLineSet[2] = reverse.readLine();
-				forwardLineSet[3] = forward.readLine();
-				reverseLineSet[3] = reverse.readLine();
-
-				// search for the barcode
-				int barcodeLen = barcodes.findBarcodeLen(forwardLineSet[1]);
-				
-				// only keep properly barcoded lines
-				if (barcodeLen >= MIN_BARCODE_LEN || retain) {
-					nLines++;
-					if (!retain) {
-						outFwd.write(forwardLineSet[0]);
-						outFwd.newLine();
-						outFwd.write(forwardLineSet[1]);
-						outFwd.newLine();
-						outFwd.write(forwardLineSet[2]);
-						outFwd.newLine();
-						outFwd.write(forwardLineSet[3]);
-						outFwd.newLine();
-					}
-					
-					outRev.write(reverseLineSet[0]);
-					outRev.newLine();
-					// write the barcode
-					for (int i = 0; i < barcodeLen; i++) {
-						outRev.write(forwardLineSet[1].charAt(i));
-					}
-					outRev.write(reverseLineSet[1]);
-					outRev.newLine();
-					outRev.write(reverseLineSet[2]);
-					outRev.newLine();
-					// write the quality for the barcode
-					for (int i = 0; i < barcodeLen; i++) {
-						outRev.write(forwardLineSet[3].charAt(i));
-					}
-					outRev.write(reverseLineSet[3]);
-					outRev.newLine();
-				} else {
-					if (fuzzyMatch) {
-						String fuzzedMatch = barcodes.fuzzyMatch(forwardLineSet[1],
-								forwardLineSet[3]);
-						if (fuzzedMatch.length() >= MIN_BARCODE_LEN) {
-							nFuzzed++;
-							outFwd.write(forwardLineSet[0]);
-							outFwd.newLine();
-							outFwd.write(fuzzedMatch);
-							outFwd.write(forwardLineSet[1].substring(fuzzedMatch.length()));
-							outFwd.newLine();
-							outFwd.write(forwardLineSet[2]);
-							outFwd.newLine();
-							outFwd.write(forwardLineSet[3]);
-							outFwd.newLine();
-							
-							outRev.write(reverseLineSet[0]);
-							outRev.newLine();
-							// write the barcode
-							outRev.write(fuzzedMatch);
-							outRev.write(reverseLineSet[1]);
-							outRev.newLine();
-							outRev.write(reverseLineSet[2]);
-							outRev.newLine();
-							// write the quality for the barcode - uncorrected
-							for (int i = 0; i < barcodeLen; i++) {
-								outRev.write(forwardLineSet[3].charAt(i));
-							}
-							outRev.write(reverseLineSet[3]);
-							outRev.newLine();
-						}
-					} else {
-						nSkipped++;
-					}
-				}
+			// both reading and writing to disk tends to buffer; build up enough 
+			// work in the queue so that one thread can work while the other is flushing/filling the buffer
+			// Generally, the writing thread takes longer than the reading thread
+			int bufferSize = 100; 
+			ArrayBlockingQueue<Read> availableReadPool = new ArrayBlockingQueue<>(bufferSize);
+			ArrayBlockingQueue<Read> loadedReads = new ArrayBlockingQueue<>(bufferSize);
+			for (int i = 0; i < bufferSize; i++) {
+				availableReadPool.add(new Read());
 			}
+			CountDownLatch persistFinished = new CountDownLatch(1);
+			ExecutorService exec = Executors.newFixedThreadPool(2);
+			Future<?> load = exec.submit(() -> {
+				try {
+					String forwardLine = "";
+					while ((forwardLine = forward.readLine()) != null) {
+						Read read = availableReadPool.take();
+						loadRead(forward, reverse, forwardLine, read.forwardLineSet, read.reverseLineSet);
+						read.barcodeLen = barcodes.findBarcodeLen(read.forwardLineSet[1]);
+						if (read.barcodeLen >= MIN_BARCODE_LEN || retain) {
+							stats.nWritten.getAndIncrement();
+						} else if (fuzzyMatch) {
+							String fuzzedMatch = barcodes.fuzzyMatch(read.forwardLineSet[1],
+									read.forwardLineSet[3]);
+							if (fuzzedMatch.length() >= MIN_BARCODE_LEN) {
+								stats.nFuzzed.getAndIncrement();
+								read.fuzzedMatch = fuzzedMatch;
+							} else {
+								read.fuzzedMatch = null; // clear from possible previous run
+								stats.nSkipped.getAndIncrement();
+							}
+						} else {
+							stats.nSkipped.getAndIncrement();
+						}
+						loadedReads.put(read);
+					}
+				} catch (InterruptedException | IOException e) {
+					e.printStackTrace();
+				}
+			});
+			Future<?> persist = exec.submit(() -> {
+				try {
+					while (true) {
+						Read read = loadedReads.take();
+						persistBarcodedRead(fuzzyMatch, retain, outRev, outFwd, read);
+						availableReadPool.put(read);
+					}
+				} catch (InterruptedException e) {
+					// stop reading, this is pretty hacky, but avoids having to check a conditional constantly
+					try {
+						while (!loadedReads.isEmpty()) {
+							Read read = loadedReads.take();
+							persistBarcodedRead(fuzzyMatch, retain,outRev, outFwd, read);
+						}
+					} catch (InterruptedException | IOException e1) {
+						e1.printStackTrace();
+					} finally {
+						persistFinished.countDown();
+					}
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			});
+			
+			// first .get call will return once the input files have been fully read.
+			// Interrupt the persistence thread to tell it no more work is getting added to the queue
+			// await the countdown latch to see when the outstanding work queue has been fully persisted
+			// (we can't just call .get again, because that will immediately return and say the future was cancelled)
+			load.get();
+			persist.cancel(true);
+			persistFinished.await();
 		}
 		long endTime = System.currentTimeMillis();
-		System.out.println("Finished, wrote " + nLines + ", skipped " 
-				+ nSkipped + ", fuzzed " + nFuzzed + " in " + (endTime - startTime) / (60 * 1000) + " minutes");
+		long duration = (endTime - startTime);
+		String timeStr;
+		if (duration > 60000) {
+			timeStr = duration / (60 * 1000) + " minutes";
+		} else {
+			timeStr = duration + " ms";
+		}
+		System.out.println("Finished, wrote " + stats.nWritten.get() + ", skipped " 
+				+ stats.nSkipped.get() + ", fuzzed " + stats.nFuzzed.get() + " in " + timeStr);
+	}
+
+	private static void persistBarcodedRead(boolean fuzzyMatch, boolean retain,
+			BufferedWriter outRev, BufferedWriter outFwd, Read read) throws IOException {
+		// only keep properly barcoded lines
+		if (read.barcodeLen >= MIN_BARCODE_LEN || retain) {
+			if (!retain) {
+				outFwd.write(read.forwardLineSet[0]);
+				outFwd.newLine();
+				outFwd.write(read.forwardLineSet[1]);
+				outFwd.newLine();
+				outFwd.write(read.forwardLineSet[2]);
+				outFwd.newLine();
+				outFwd.write(read.forwardLineSet[3]);
+				outFwd.newLine();
+			}
+			
+			outRev.write(read.reverseLineSet[0]);
+			outRev.newLine();
+			// write the barcode
+			for (int i = 0; i < read.barcodeLen; i++) {
+				outRev.write(read.forwardLineSet[1].charAt(i));
+			}
+			outRev.write(read.reverseLineSet[1]);
+			outRev.newLine();
+			outRev.write(read.reverseLineSet[2]);
+			outRev.newLine();
+			// write the quality for the barcode
+			for (int i = 0; i < read.barcodeLen; i++) {
+				outRev.write(read.forwardLineSet[3].charAt(i));
+			}
+			outRev.write(read.reverseLineSet[3]);
+			outRev.newLine();
+		} else if (read.fuzzedMatch != null) {
+			outFwd.write(read.forwardLineSet[0]);
+			outFwd.newLine();
+			outFwd.write(read.fuzzedMatch);
+			outFwd.write(read.forwardLineSet[1].substring(read.fuzzedMatch.length()));
+			outFwd.newLine();
+			outFwd.write(read.forwardLineSet[2]);
+			outFwd.newLine();
+			outFwd.write(read.forwardLineSet[3]);
+			outFwd.newLine();
+
+			outRev.write(read.reverseLineSet[0]);
+			outRev.newLine();
+			// write the barcode
+			outRev.write(read.fuzzedMatch);
+			outRev.write(read.reverseLineSet[1]);
+			outRev.newLine();
+			outRev.write(read.reverseLineSet[2]);
+			outRev.newLine();
+			// write the quality for the barcode - uncorrected
+			for (int i = 0; i < read.fuzzedMatch.length(); i++) {
+				outRev.write(read.forwardLineSet[3].charAt(i));
+			}
+			outRev.write(read.reverseLineSet[3]);
+			outRev.newLine();
+		}
+	}
+
+	private static void loadRead(BufferedReader forward, BufferedReader reverse, String forwardLine,
+			String[] forwardLineSet, String[] reverseLineSet) throws IOException {
+		// read sequence id line, barcode line, delimiter, and quality
+		forwardLineSet[0] = forwardLine;
+		reverseLineSet[0] = reverse.readLine();
+		forwardLineSet[1] = forward.readLine();
+		reverseLineSet[1] = reverse.readLine();
+		forwardLineSet[2] = forward.readLine();
+		reverseLineSet[2] = reverse.readLine();
+		forwardLineSet[3] = forward.readLine();
+		reverseLineSet[3] = reverse.readLine();
 	}
 }
