@@ -18,12 +18,13 @@ read FASTQ file
 
 Example usage:
 
-Usage:
+```java
 export forwardReads = "191016_AHLKHHDMXX/Box-1_S79_L001_R1_001.fastq.gz"
 export reverseReads = "191016_AHLKHHDMXX/Box-1_S79_L001_R2_001.fastq.gz"
 export barcodes = "191016_AHLKHHDMXX/GBS-ApeKI-1-96_barcodes.txt"
 
 java -cp CopyBarcodes.jar CopyBarcodes $forwardReads $reverseReads $barcodes [fuzzy|retain|nothing]
+```
 
 Rough benchmarking was performed on a MacBook Pro with a 3.3 GHz Intel Core i7 CPU and 16 GB of 2133 MHz LPDDR3 RAM.  
 
