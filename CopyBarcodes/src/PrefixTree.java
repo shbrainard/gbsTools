@@ -1,28 +1,11 @@
-import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 
 public class PrefixTree {
-
 	private static class Node {
-		private final List<NodeLink> children;
-		private boolean isBarcode;
-		
-		public Node() {
-			this.children = new ArrayList<>();
-			this.isBarcode = false;
-		}
-	}
-	
-	private static class NodeLink {
-		private final char letter;
-		private final Node node;
-		
-		public NodeLink(char letter, Node node) {
-			this.letter = letter;
-			this.node = node;
-		}
+		// index by offset from 'A', which has an int value of 65
+		private final Node[] children = new Node[20];
+		private boolean isBarcode = false;
 	}
 	
 	private final Node root = new Node();
@@ -59,16 +42,15 @@ public class PrefixTree {
 			node.isBarcode = true;
 			return;
 		}
-		for (NodeLink link : node.children) {
-			if (link.letter == barcode.charAt(pos)) {
-				addBarcodeRec(link.node, barcode, pos + 1);
-				return;
-			}
+		Node link = node.children[barcode.charAt(pos) - 65];
+		if (link != null) {
+			addBarcodeRec(link, barcode, pos + 1);
+			return;
 		}
 		// didn't find the next letter, add a new link
-		NodeLink newChild = new NodeLink(barcode.charAt(pos), new Node());
-		node.children.add(newChild);
-		addBarcodeRec(newChild.node, barcode, pos + 1);
+		Node newChild = new Node();
+		node.children[barcode.charAt(pos) - 65] = newChild;
+		addBarcodeRec(newChild, barcode, pos + 1);
 	}
 
 	public int findBarcodeLen(String read) {
@@ -83,12 +65,11 @@ public class PrefixTree {
 		if (pos == MAX_BARCODE_LEN) { // assume read length is always greater than 12
 			return 0; 
 		}
-		for (NodeLink link : node.children) {
-			if (link.letter == read.charAt(pos)) {
-				int len = findBarcodeLenRec(link.node, read, pos + 1);
-				if (len > 0) {
-					return len + 1;
-				}
+		Node link = node.children[read.charAt(pos) - 65];
+		if (link != null) {
+			int len = findBarcodeLenRec(link, read, pos + 1);
+			if (len > 0) {
+				return len + 1;
 			}
 		}
 		return 0; 
@@ -110,13 +91,12 @@ public class PrefixTree {
 		if (pos == MAX_BARCODE_LEN) { // assume read length is always greater than 12
 			return 0; 
 		}
-		for (NodeLink link : node.children) {
-			if (link.letter == read.charAt(pos)) {
-				int len = fuzzyMatchRec(link.node, read, quality, pos + 1, fuzzyMatch);
-				if (len > 0) {
-					fuzzyMatchStr[pos] = link.letter;
-					return len + 1;
-				}
+		Node link = node.children[read.charAt(pos) - 65];
+		if (link != null) {
+			int len = fuzzyMatchRec(link, read, quality, pos + 1, fuzzyMatch);
+			if (len > 0) {
+				fuzzyMatchStr[pos] = read.charAt(pos);
+				return len + 1;
 			}
 		}
 		// if we found no match, see if we're a suitable candidate for fuzzy matching
@@ -125,12 +105,14 @@ public class PrefixTree {
 			int nFound = 0;
 			int foundLen = 0;
 			char foundChar = ' ';
-			for (NodeLink link : node.children) {
-				int len = fuzzyMatchRec(link.node, read, quality, pos + 1, false);
-				if (len > 0) {
-					foundLen = len;
-					nFound++;
-					foundChar = link.letter;
+			for (int i = 0; i < node.children.length; i++) {
+				if (node.children[i] != null) {
+					int len = fuzzyMatchRec(node.children[i], read, quality, pos + 1, false);
+					if (len > 0) {
+						foundLen = len;
+						nFound++;
+						foundChar = (char) (i + 'A');
+					}
 				}
 			}
 			if (nFound == 1) {
