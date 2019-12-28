@@ -8,9 +8,7 @@ public class PrefixTree {
 		private boolean isBarcode = false;
 	}
 	
-	private final Node root = new Node();
-	
-	// if the enzyme changes, these may need to change
+	private final Node root = new Node();	
 	private final Set<String> overhangs = new HashSet<>();
 	private final int MAX_BARCODE_LEN;
 	private final int OVERHANG_LEN;
@@ -18,6 +16,7 @@ public class PrefixTree {
 	
 	public PrefixTree(boolean includeOverhangs) {
 		if (includeOverhangs) {
+			// if the enzyme changes, these may need to change
 			overhangs.add("CAGC");
 			overhangs.add("CTGC");
 			OVERHANG_LEN = 4;
