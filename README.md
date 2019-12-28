@@ -18,7 +18,7 @@ read FASTQ file
 
 Example usage:
 
-```java
+```bash
 export forwardReads = "191016_AHLKHHDMXX/Box-1_S79_L001_R1_001.fastq.gz"
 export reverseReads = "191016_AHLKHHDMXX/Box-1_S79_L001_R2_001.fastq.gz"
 export barcodes = "191016_AHLKHHDMXX/GBS-ApeKI-1-96_barcodes.txt"
