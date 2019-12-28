@@ -28,6 +28,9 @@ java -cp CopyBarcodes.jar CopyBarcodes $forwardReads $reverseReads $barcodes [fu
 
 Rough benchmarking was performed on a MacBook Pro with a 3.3 GHz Intel Core i7 CPU and 16 GB of 2133 MHz LPDDR3 RAM.  
 
+
 retain: ~4hrs
+
 fuzzy: ~9hrs
+
 nothing: ~7.5 hrs
