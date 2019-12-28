@@ -26,8 +26,8 @@ export barcodes = "191016_AHLKHHDMXX/GBS-ApeKI-1-96_barcodes.txt"
 java -cp CopyBarcodes.jar CopyBarcodes $forwardReads $reverseReads $barcodes [fuzzy|retain|nothing]
 ```
 
-Rough benchmarking was performed on a MacBook Pro with a 3.3 GHz Intel Core i7 CPU and 16 GB of 2133 MHz LPDDR3 RAM.  
-
+Rough benchmarking was performed on a MacBook Pro with a 3.3 GHz Intel Core i7 CPU and 16 GB of 2133 MHz LPDDR3 RAM.  Forward
+read file was 28.64 GB, reverse read file was 29.74 GB.
 
 retain: ~4hrs
 
