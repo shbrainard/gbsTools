@@ -21,7 +21,7 @@ java -cp CopyBarcodes.jar CopyBarcodes $forwardReads $reverseReads $barcodes [fu
 ```
 N.B. "fuzzy" and "retain" are mutually-exclusive options.
 
-Benchmarking was performed on a MacBook Pro with a 3.3 GHz Intel Core i7 CPU and 16 GB of 2133 MHz LPDDR3 RAM.  The forward-read file was 28.64 GB, and the reverse-read file was 29.74 GB.
+Benchmarking was performed on a MacBook Pro with a 3.3 GHz Intel Core i7 CPU and 16 GB of 2133 MHz LPDDR3 RAM.  The forward-read file was 28.64 GB, and the reverse-read file was 29.74 GB (each containing roughly 400,000,000 reads).
 
 retain: 250 minutes
 
