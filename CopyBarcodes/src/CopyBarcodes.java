@@ -11,7 +11,6 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 import java.util.zip.InflaterInputStream;
@@ -19,12 +18,6 @@ import java.util.zip.InflaterInputStream;
 public class CopyBarcodes {
 
 	private static final int MIN_BARCODE_LEN = 4;
-	
-	private static class OutputStats {
-		final AtomicInteger nWritten = new AtomicInteger(0);
-		final AtomicInteger nFuzzed = new AtomicInteger(0);
-		final AtomicInteger nSkipped = new AtomicInteger(0);
-	}
 	
 	private static class Read {
 		String[] forwardLineSet = new String[4];
@@ -46,6 +39,7 @@ public class CopyBarcodes {
 		String reverseFile = args[1];
 		String barcodeFile = args[2];
 		boolean fuzzyMatch = args.length > 3 && args[3].equalsIgnoreCase("fuzzy");
+		boolean debug = fuzzyMatch && args.length > 4 && args[4].equalsIgnoreCase("debug");
 		boolean retain = args.length > 3 && args[3].equalsIgnoreCase("retain");
 		String outputFileRev = reverseFile.substring(0, reverseFile.lastIndexOf(".gz")) + ".barcoded.reverse.gz";
 		String outputFileFwd = forwardFile.substring(0, forwardFile.lastIndexOf(".gz")) + ".barcoded.forward.gz";
@@ -101,7 +95,7 @@ public class CopyBarcodes {
 							stats.nWritten.getAndIncrement();
 						} else if (fuzzyMatch) {
 							String fuzzedMatch = barcodes.fuzzyMatch(read.forwardLineSet[1],
-									read.forwardLineSet[3]);
+									read.forwardLineSet[3], debug ? stats : null);
 							if (fuzzedMatch.length() >= MIN_BARCODE_LEN) {
 								stats.nFuzzed.getAndIncrement();
 								read.fuzzedMatch = fuzzedMatch;
@@ -147,6 +141,12 @@ public class CopyBarcodes {
 			// await the countdown latch to see when the outstanding work queue has been fully persisted
 			// (we can't just call .get again, because that will immediately return and say the future was cancelled)
 			load.get();
+			
+			// for test purposes, make sure the second thread has started before cancelling it
+			if (System.currentTimeMillis() - startTime < 1000) {
+				Thread.sleep(1000);
+			}
+			
 			persist.cancel(true);
 			persistFinished.await();
 		}
@@ -160,6 +160,11 @@ public class CopyBarcodes {
 		}
 		System.out.println("Finished, wrote " + stats.nWritten.get() + ", skipped " 
 				+ stats.nSkipped.get() + ", fuzzed " + stats.nFuzzed.get() + " in " + timeStr);
+		if (debug) {
+			System.out.println("Skipped " + stats.nSkippedDuplicate.get() + " due to non-unique fixes, " 
+					+ stats.nSkippedQuality.get() + " due to quality scores, and " 
+					+ stats.nSkippedMultipleBadReads.get() + " due to more than one character being off");
+		}
 	}
 
 	private static void persistBarcodedRead(boolean fuzzyMatch, boolean retain,

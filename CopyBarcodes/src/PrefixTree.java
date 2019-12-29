@@ -74,16 +74,30 @@ public class PrefixTree {
 		return 0; 
 	}
 	
-	public String fuzzyMatch(String read, String quality) {
-		int len = fuzzyMatchRec(root, read, quality, 0, true);
+	private static class FuzzyMatchReason {
+		boolean highQuality = false;
+		boolean duplicate = false;
+	}
+	
+	public String fuzzyMatch(String read, String quality, OutputStats stats) {
+		FuzzyMatchReason fuzzyMatchReason = new FuzzyMatchReason();
+		int len = fuzzyMatchRec(root, read, quality, 0, true, stats == null ? null : fuzzyMatchReason);
 		if (len > 0) {
 			return new String(fuzzyMatchStr, 0, len - 1 - OVERHANG_LEN);
+		} else if (stats != null) {
+			if (fuzzyMatchReason.duplicate) {
+				stats.nSkippedDuplicate.getAndIncrement();
+			} else if (fuzzyMatchReason.highQuality) {
+				stats.nSkippedQuality.getAndIncrement();
+			} else {
+				stats.nSkippedMultipleBadReads.getAndIncrement();
+			}
 		}
 		return "";
 	}
 	
 	private int fuzzyMatchRec(Node node, String read, String quality, int pos,
-			boolean fuzzyMatch) {
+			boolean fuzzyMatch, FuzzyMatchReason reason) {
 		if (node.isBarcode) {
 			return 1;
 		}
@@ -92,7 +106,7 @@ public class PrefixTree {
 		}
 		Node link = node.children[read.charAt(pos) - 65];
 		if (link != null) {
-			int len = fuzzyMatchRec(link, read, quality, pos + 1, fuzzyMatch);
+			int len = fuzzyMatchRec(link, read, quality, pos + 1, fuzzyMatch, reason);
 			if (len > 0) {
 				fuzzyMatchStr[pos] = read.charAt(pos);
 				return len + 1;
@@ -100,24 +114,32 @@ public class PrefixTree {
 		}
 		// if we found no match, see if we're a suitable candidate for fuzzy matching
 		// require a unique match at the position to be a valid fuzzy match
+		// the exception to the 'unique match' is in the overhang - we don't actually
+		// care which overhang it is.
 		if (fuzzyMatch && quality.charAt(pos) < 'F') {
-			int nFound = 0;
+			int nBarcodesFound = 0;
 			int foundLen = 0;
 			char foundChar = ' ';
 			for (int i = 0; i < node.children.length; i++) {
 				if (node.children[i] != null) {
-					int len = fuzzyMatchRec(node.children[i], read, quality, pos + 1, false);
+					int len = fuzzyMatchRec(node.children[i], read, quality, pos + 1, false, reason);
 					if (len > 0) {
 						foundLen = len;
-						nFound++;
 						foundChar = (char) (i + 'A');
+						if (len > OVERHANG_LEN) {
+							nBarcodesFound++;
+						}
 					}
 				}
 			}
-			if (nFound == 1) {
+			if (nBarcodesFound <= 1 && foundLen > 0) {
 				fuzzyMatchStr[pos] = foundChar;
 				return foundLen + 1;
+			} else if (reason != null && nBarcodesFound > 1) {
+				reason.duplicate = true;
 			}
+		} else if (reason != null && quality.charAt(pos) >= 'F') {
+			reason.highQuality = true;
 		}
 		return 0; 
 	}

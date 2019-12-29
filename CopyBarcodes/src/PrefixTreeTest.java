@@ -47,18 +47,20 @@ public class PrefixTreeTest {
 		tree.addBarcode("GCA");
 		tree.addBarcode("GCT");
 		
-		String match = tree.fuzzyMatch("CGACAGCT", "FFFFFFFFFFF");
+		OutputStats stats = new OutputStats();
+		
+		String match = tree.fuzzyMatch("CGACAGCT", "FFFFFFFFFFF", null);
 		assert match.equals("CGA");
 		
-		match = tree.fuzzyMatch("CGTCAGCT", "FFFFFFFFFFF");
+		match = tree.fuzzyMatch("CGTCAGCT", "FFFFFFFFFFF", stats);
 		assert match.equals("");
+		assert stats.nSkippedQuality.get() == 1;
 		
-		match = tree.fuzzyMatch("CGTCAGCT", "FF,FFFFFFFF");
+		match = tree.fuzzyMatch("CGTCAGCT", "FF,FFFFFFFF", null);
 		assert match.equals("CGA");
 		
-		match = tree.fuzzyMatch("GCGCAGCT", "FF,FFFFFFFF");
+		match = tree.fuzzyMatch("GCGCAGCT", "FF,FFFFFFFF", stats);
 		assert match.equals("");
-		
-		
+		assert stats.nSkippedDuplicate.get() == 1;
 	}
 }
