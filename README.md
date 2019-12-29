@@ -2,7 +2,7 @@
 
 CopyBarcodes performs pre-alignment processing of FASTQ files containing paired-end GBS reads (e.g., those generated on Illumina machines).  The two goals are to identify, and optionally correct, sequencing errors in the barcode/overhang region of the forward reads, and subsequently add correct(ed) barcodes to the beginning of the respective reverse reads.
 
-In all cases, an initial verification step is performed, using a prefix-tree to check that the beginning of each read in the forward-read FASTQ file contains one of the barcodes in the supplied barcode file, and that this barcode is immediately followed by one of the two possible overhang sequences that would be genereated by the ApeK1 restriction enzyme.
+In all cases, an initial verification step is performed, using a prefix tree to check that the beginning of each read in the forward-read FASTQ file contains one of the barcodes in the supplied barcode file, and that this barcode is immediately followed by one of the two possible overhang sequences that would be genereated by the ApeK1 restriction enzyme.
 
 If only forward- and reverse- read FASTQ files, plus a barcode file, are passed, mismatches are deleted from the output forward- and reverse-read FASTQ files, which are written to disc as .gz archives.
 
