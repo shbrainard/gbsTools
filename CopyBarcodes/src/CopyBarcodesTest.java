@@ -64,7 +64,7 @@ public class CopyBarcodesTest {
 		out.write("Header\n".getBytes());
 		out.write("AAAAAAAAAAACCCGGGTTTAAA\n".getBytes());
 		out.write("+\n".getBytes());
-		out.write("FFFFFFFFFFFFFFFFFFFFFFF\n".getBytes());
+		out.write(",,,,,,,,,FFFFFFFFFFFFF\n".getBytes());
 		
 		// write a fuzzable read
 		out.write("Header\n".getBytes());

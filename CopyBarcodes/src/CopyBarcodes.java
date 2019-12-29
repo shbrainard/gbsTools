@@ -70,6 +70,8 @@ public class CopyBarcodes {
 				new GZIPOutputStream(new FileOutputStream(outputFileRev))));
 				BufferedWriter outFwd = retain ? null : new BufferedWriter(new OutputStreamWriter(
 						new GZIPOutputStream(new FileOutputStream(outputFileFwd))));
+				BufferedWriter debugOut = debug ? new BufferedWriter(new OutputStreamWriter(
+						new FileOutputStream("debugOut.txt"))) : null;
 				BufferedReader forward = new BufferedReader(new InputStreamReader(iisFwd));
 				BufferedReader reverse = new BufferedReader(new InputStreamReader(iisRev));) {
 
@@ -116,7 +118,7 @@ public class CopyBarcodes {
 				try {
 					while (true) {
 						Read read = loadedReads.take();
-						persistBarcodedRead(fuzzyMatch, retain, outRev, outFwd, read);
+						persistBarcodedRead(fuzzyMatch, retain, outRev, outFwd, debugOut, read);
 						availableReadPool.put(read);
 					}
 				} catch (InterruptedException e) {
@@ -124,7 +126,7 @@ public class CopyBarcodes {
 					try {
 						while (!loadedReads.isEmpty()) {
 							Read read = loadedReads.take();
-							persistBarcodedRead(fuzzyMatch, retain,outRev, outFwd, read);
+							persistBarcodedRead(fuzzyMatch, retain,outRev, outFwd, debugOut, read);
 						}
 					} catch (InterruptedException | IOException e1) {
 						e1.printStackTrace();
@@ -168,7 +170,7 @@ public class CopyBarcodes {
 	}
 
 	private static void persistBarcodedRead(boolean fuzzyMatch, boolean retain,
-			BufferedWriter outRev, BufferedWriter outFwd, Read read) throws IOException {
+			BufferedWriter outRev, BufferedWriter outFwd, BufferedWriter debugOut, Read read) throws IOException {
 		// only keep properly barcoded lines
 		if (read.barcodeLen >= MIN_BARCODE_LEN || retain) {
 			if (!retain) {
@@ -223,6 +225,11 @@ public class CopyBarcodes {
 			}
 			outRev.write(read.reverseLineSet[3]);
 			outRev.newLine();
+		} else if (debugOut != null) {
+			debugOut.write(read.forwardLineSet[1]);
+			debugOut.newLine();
+			debugOut.write(read.forwardLineSet[3]);
+			debugOut.newLine();
 		}
 	}
 
