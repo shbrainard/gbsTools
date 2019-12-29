@@ -17,7 +17,7 @@ export forwardReads=/PATH/TO/FORWARD/READ/FASTQ/GZ/FILE
 export reverseReads=/PATH/TO/REVERSE/READ/FASTQ/GZ/FILE
 export barcodes=/PATH/TO/BARCODE/FILE
 
-java -cp CopyBarcodes.jar CopyBarcodes $forwardReads $reverseReads $barcodes [fuzzy|retain]
+java -cp CopyBarcodes.jar CopyBarcodes $forwardReads $reverseReads $barcodes [fuzzy|fuzzy debug|retain]
 ```
 N.B. "fuzzy" and "retain" are mutually-exclusive options.
 
