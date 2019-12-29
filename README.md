@@ -6,7 +6,7 @@ In all cases, an initial verification step is performed, using a prefix-tree to 
 
 If only forward- and reverse- read FASTQ files, plus a barcode file, are passed, mismatches are deleted from the output forward- and reverse-read FASTQ files, which are written to disc as .gz archives.
 
-If the "fuzzy" argument is passed, fuzzy-matching is performed in cases of mismatches, and if a unique barcode can be recovered by changing no more than one low-quality (i.e., lower than quality score of F), it is also written to the output files as well.
+If the "fuzzy" argument is passed, fuzzy-matching is performed in cases of mismatches, and if a unique barcode can be recovered by changing no more than one low-quality (i.e., lower than quality score of F), it is also written to the output files as well.  This option can also be run in "debug mode" by calling "fuzzy debug": all skipped reads will then be writted to debugOut.txt, and some summary statistics will also be output describing what was skipped.
 
 If, instead, "retain" is passed, mismatches are not removed from the forward-read file, and are copied as-is to the reverse-read zipped FASTQ file.
 
