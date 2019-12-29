@@ -23,8 +23,6 @@ N.B. "fuzzy" and "retain" are mutually-exclusive options.
 
 Benchmarking was performed on a MacBook Pro with a 3.3 GHz Intel Core i7 CPU and 16 GB of 2133 MHz LPDDR3 RAM.  The forward-read file was 28.64 GB, and the reverse-read file was 29.74 GB.
 
-retain: ~4hrs
+retain: 250 minutes (wrote 404108144)
 
 fuzzy: 450 minutes (wrote 391500631, skipped 9395774, fuzzed 3211739)
-
-default: ~7.5 hrs
