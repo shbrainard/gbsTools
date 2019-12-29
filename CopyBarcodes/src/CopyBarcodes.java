@@ -151,6 +151,7 @@ public class CopyBarcodes {
 			
 			persist.cancel(true);
 			persistFinished.await();
+			exec.shutdown();
 		}
 		long endTime = System.currentTimeMillis();
 		long duration = (endTime - startTime);
