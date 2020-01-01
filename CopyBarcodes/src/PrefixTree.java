@@ -12,20 +12,21 @@ public class PrefixTree {
 	private final Set<String> overhangs = new HashSet<>();
 	private final int MAX_BARCODE_LEN;
 	private final int OVERHANG_LEN;
+	private final char minQuality;
+	
 	private char[] fuzzyMatchStr;
 	
-	public PrefixTree(boolean includeOverhangs) {
+	public PrefixTree(boolean includeOverhangs, Config config) {
 		if (includeOverhangs) {
 			// if the enzyme changes, these may need to change
-			overhangs.add("CAGC");
-			overhangs.add("CTGC");
-			OVERHANG_LEN = 4;
-			MAX_BARCODE_LEN = 12;
+			overhangs.addAll(config.getOverhangs());
+			OVERHANG_LEN = overhangs.iterator().next().length();
 		} else {
 			overhangs.add("");
 			OVERHANG_LEN = 0;
-			MAX_BARCODE_LEN = 8;
 		}
+		minQuality = config.getMinQuality();
+		MAX_BARCODE_LEN = 8 + OVERHANG_LEN;
 		fuzzyMatchStr = new char[MAX_BARCODE_LEN];
 	}
 
@@ -116,7 +117,7 @@ public class PrefixTree {
 		// require a unique match at the position to be a valid fuzzy match
 		// the exception to the 'unique match' is in the overhang - we don't actually
 		// care which overhang it is.
-		if (fuzzyMatch && quality.charAt(pos) < 'F') {
+		if (fuzzyMatch && quality.charAt(pos) < minQuality) {
 			int nBarcodesFound = 0;
 			int foundLen = 0;
 			char foundChar = ' ';

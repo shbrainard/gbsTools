@@ -27,9 +27,9 @@ public class CopyBarcodes {
 	}
 
 	public static void main(String[] args) throws Exception {
-		if (args.length < 3) {
+		if (args.length < 4) {
 			System.out.println("Usage: <path to forward file, .gz> <path to reverse file, .gz> "
-					+ "<path to barcode file, text>, (optional) 'fuzzy|retain' to do fuzzy matching,"
+					+ "<path to barcode file, text>, <path to config file>, (optional) 'fuzzy|retain' to do fuzzy matching,"
 					+ " or retain to keep unmatched lines as they are."
 					+ "output is stored in reverseFile.barcoded.gz");
 			System.exit(-1);
@@ -38,6 +38,7 @@ public class CopyBarcodes {
 		String forwardFile = args[0];
 		String reverseFile = args[1];
 		String barcodeFile = args[2];
+		String configFile = args[3];
 		boolean fuzzyMatch = args.length > 3 && args[3].equalsIgnoreCase("fuzzy");
 		boolean debug = fuzzyMatch && args.length > 4 && args[4].equalsIgnoreCase("debug");
 		boolean retain = args.length > 3 && args[3].equalsIgnoreCase("retain");
@@ -45,7 +46,7 @@ public class CopyBarcodes {
 		String outputFileFwd = forwardFile.substring(0, forwardFile.lastIndexOf(".gz")) + ".barcoded.forward.gz";
 		
 		// load barcodes
-		PrefixTree barcodes = new PrefixTree(!retain);
+		PrefixTree barcodes = new PrefixTree(!retain, Config.loadFromFile(configFile));
 		String line = "";
 		InflaterInputStream iisFwd = new GZIPInputStream(
 				new FileInputStream(forwardFile));
