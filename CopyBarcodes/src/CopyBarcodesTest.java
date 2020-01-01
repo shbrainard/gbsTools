@@ -2,6 +2,8 @@ import java.io.BufferedReader;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.InputStreamReader;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
@@ -12,14 +14,26 @@ public class CopyBarcodesTest {
 	@Test
 	public void smokeTest() throws Exception {
 		setUpTestFiles();
-		CopyBarcodes.main(new String[] {"testForward.gz", "testBackwards.gz", "testBarcodes.txt"});
+		CopyBarcodes.main(new String[] {"testForward.gz", "testBackwards.gz", "testBarcodes.txt", "default.config"});
 		checkOutput(2, true);
-		CopyBarcodes.main(new String[] {"testForward.gz", "testBackwards.gz", "testBarcodes.txt", "retain"});
+		CopyBarcodes.main(new String[] {"testForward.gz", "testBackwards.gz", "testBarcodes.txt",  "default.config", "retain"});
 		checkOutput(4, false);
-		CopyBarcodes.main(new String[] {"testForward.gz", "testBackwards.gz", "testBarcodes.txt", "fuzzy"});
+		CopyBarcodes.main(new String[] {"testForward.gz", "testBackwards.gz", "testBarcodes.txt",  "default.config", "fuzzy"});
 		checkOutput(3, true);
-		CopyBarcodes.main(new String[] {"testForward.gz", "testBackwards.gz", "testBarcodes.txt", "fuzzy", "debug"});
+		CopyBarcodes.main(new String[] {"testForward.gz", "testBackwards.gz", "testBarcodes.txt",  "default.config", "fuzzy", "debug"});
 		checkOutput(3, true);
+	}
+	
+	@Test
+	public void testEditDistance() throws Exception {
+		Set<String> strings = new HashSet<>();
+		strings.add("AAA");
+		strings.add("AAAA");
+		strings.add("BBB");
+		assert 3 == CopyBarcodes.getMinEditDistance(strings);
+		
+		strings.add("AABA");
+		assert 1 == CopyBarcodes.getMinEditDistance(strings);
 	}
 	
 	private void checkOutput(int numExpected, boolean checkFwd) throws Exception {
