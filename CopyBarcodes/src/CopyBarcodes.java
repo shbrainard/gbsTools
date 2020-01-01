@@ -6,6 +6,8 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -39,9 +41,9 @@ public class CopyBarcodes {
 		String reverseFile = args[1];
 		String barcodeFile = args[2];
 		String configFile = args[3];
-		boolean fuzzyMatch = args.length > 3 && args[3].equalsIgnoreCase("fuzzy");
-		boolean debug = fuzzyMatch && args.length > 4 && args[4].equalsIgnoreCase("debug");
-		boolean retain = args.length > 3 && args[3].equalsIgnoreCase("retain");
+		boolean fuzzyMatch = args.length > 4 && args[4].equalsIgnoreCase("fuzzy");
+		boolean debug = fuzzyMatch && args.length > 5 && args[5].equalsIgnoreCase("debug");
+		boolean retain = args.length > 4 && args[4].equalsIgnoreCase("retain");
 		String outputFileRev = reverseFile.substring(0, reverseFile.lastIndexOf(".gz")) + ".barcoded.reverse.gz";
 		String outputFileFwd = forwardFile.substring(0, forwardFile.lastIndexOf(".gz")) + ".barcoded.forward.gz";
 		
@@ -53,13 +55,20 @@ public class CopyBarcodes {
 		InflaterInputStream iisRev = new GZIPInputStream(
 				new FileInputStream(reverseFile));
 		
+		Set<String> barcodeSet = new HashSet<>();
 		try (BufferedReader reader = new BufferedReader(new FileReader(barcodeFile))) {
 			while ((line = reader.readLine()) != null) {
 				int index = line.indexOf("\t");
 				if (index > 0) {
 					barcodes.addBarcode(line.substring(0, index));
+					barcodeSet.add(line.substring(0, index));
 				}
 			}
+		}
+		int minEditDistance = getMinEditDistance(barcodeSet);
+		System.out.println("Min edit distance: " + minEditDistance);
+		if (minEditDistance <= 2) {
+			System.out.println("There is a risk of mis-fuzzing because the barcodes are too similar");
 		}
 		OutputStats stats = new OutputStats();
 		
@@ -169,6 +178,26 @@ public class CopyBarcodes {
 					+ stats.nSkippedQuality.get() + " due to quality scores, and " 
 					+ stats.nSkippedMultipleBadReads.get() + " due to more than one character being off");
 		}
+	}
+
+	// edit distance not allowing for adds/deletions (only allowing for edits that are made during fuzzing)
+	public static int getMinEditDistance(Set<String> barcodeSet) {
+		int minDistance = Integer.MAX_VALUE;
+		for (String s1 : barcodeSet) {
+			for (String s2 : barcodeSet) {
+				if (s1 != s2 // yup, we want this kind of equals comparison
+						&& s1.length() == s2.length()) {
+					int editDistance = 0;
+					for (int i = 0; i < s1.length(); i++) {
+						if (s1.charAt(i) != s2.charAt(i)) {
+							editDistance++;
+						}
+					}
+					minDistance = Math.min(minDistance, editDistance);
+				}
+			}
+		}
+		return minDistance;
 	}
 
 	private static void persistBarcodedRead(boolean fuzzyMatch, boolean retain,
