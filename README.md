@@ -15,9 +15,11 @@ Example usage:
 ```bash
 export forwardReads=/PATH/TO/FORWARD/READ/FASTQ/GZ/FILE
 export reverseReads=/PATH/TO/REVERSE/READ/FASTQ/GZ/FILE
-export barcodes=/PATH/TO/BARCODE/FILE
+export config=/PATH/TO/CONFIG/DOT/FILE
+export barcodes=/PATH/TO/BARCODE/TXT/FILE
 
-java -cp CopyBarcodes.jar CopyBarcodes $forwardReads $reverseReads $barcodes [fuzzy|fuzzy debug|retain]
+
+java -cp CopyBarcodes.jar CopyBarcodes $forwardReads $reverseReads $barcodes $config [fuzzy|fuzzy debug|retain]
 ```
 N.B. "fuzzy" and "retain" are mutually-exclusive options.
 
@@ -25,4 +27,4 @@ Benchmarking was performed on a MacBook Pro with a 3.3 GHz Intel Core i7 CPU and
 
 retain: 250 minutes
 
-fuzzy: 450 minutes
+default, fuzzy, fuzzy debug: 450 minutes
