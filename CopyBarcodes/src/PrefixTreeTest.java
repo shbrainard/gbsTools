@@ -4,7 +4,7 @@ public class PrefixTreeTest {
 	
 	@Test
 	public void testTree() throws Exception {
-		PrefixTree tree = new PrefixTree(true, Config.loadFromFile("default.config"));
+		PrefixTree tree = new PrefixTree(Config.loadFromFile("default.config"));
 		tree.addBarcode("CGA");
 		tree.addBarcode("GCAGCAGC");
 		
@@ -22,27 +22,8 @@ public class PrefixTreeTest {
 	}
 	
 	@Test
-	public void testFastTree() throws Exception {
-		PrefixTree tree = new PrefixTree(false, Config.loadFromFile("default.config"));
-		tree.addBarcode("CGA");
-		tree.addBarcode("GCAGCAGC");
-		
-		int len = tree.findBarcodeLen("CGAT");
-		assert len == 3; // no overhang
-		
-		len = tree.findBarcodeLen("CGACAGCT");
-		assert len == 3; 
-		
-		len = tree.findBarcodeLen("GCAGCAGCCAGCT");
-		assert len == 8; 
-		
-		len = tree.findBarcodeLen("GCAGCAGCACAGCT");
-		assert len == 8; // too long before overhang
-	}
-	
-	@Test
 	public void testFuzz() throws Exception {
-		PrefixTree tree = new PrefixTree(true, Config.loadFromFile("default.config"));
+		PrefixTree tree = new PrefixTree(Config.loadFromFile("default.config"));
 		tree.addBarcode("CGA");
 		tree.addBarcode("GCA");
 		tree.addBarcode("GCT");
