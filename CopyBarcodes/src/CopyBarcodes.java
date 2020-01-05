@@ -312,7 +312,8 @@ public class CopyBarcodes {
 			if (read.forwardLineSet[0][posFwd] != read.reverseLineSet[0][posRev]) {
 				return false;
 			}
-			if (read.reverseLineSet[0][posRev] == ':') {
+			if (read.reverseLineSet[0][posRev] == ':'
+					|| read.reverseLineSet[0][posRev] == ' ') {
 				nSplitsFound++;
 			}
 			posFwd++;
