@@ -8,16 +8,16 @@ public class PrefixTreeTest {
 		tree.addBarcode("CGA");
 		tree.addBarcode("GCAGCAGC");
 		
-		int len = tree.findBarcodeLen("CGAT");
+		int len = tree.findBarcodeLen("CGAT".toCharArray());
 		assert len == 0; // no overhang
 		
-		len = tree.findBarcodeLen("CGACAGCT");
+		len = tree.findBarcodeLen("CGACAGCT".toCharArray());
 		assert len == 3; 
 		
-		len = tree.findBarcodeLen("GCAGCAGCCAGCT");
+		len = tree.findBarcodeLen("GCAGCAGCCAGCT".toCharArray());
 		assert len == 8; 
 		
-		len = tree.findBarcodeLen("GCAGCAGCACAGCT");
+		len = tree.findBarcodeLen("GCAGCAGCACAGCT".toCharArray());
 		assert len == 0; // too long before overhang
 	}
 	
@@ -30,17 +30,17 @@ public class PrefixTreeTest {
 		
 		OutputStats stats = new OutputStats();
 		
-		String match = tree.fuzzyMatch("CGACAGCT", "FFFFFFFFFFF", null);
+		String match = tree.fuzzyMatch("CGACAGCT".toCharArray(), "FFFFFFFFFFF".toCharArray(), null);
 		assert match.equals("CGA");
 		
-		match = tree.fuzzyMatch("CGTCAGCT", "FFFFFFFFFFF", stats);
+		match = tree.fuzzyMatch("CGTCAGCT".toCharArray(), "FFFFFFFFFFF".toCharArray(), stats);
 		assert match.equals("");
 		assert stats.nSkippedQuality.get() == 1;
 		
-		match = tree.fuzzyMatch("CGTCAGCT", "FF,FFFFFFFF", null);
+		match = tree.fuzzyMatch("CGTCAGCT".toCharArray(), "FF,FFFFFFFF".toCharArray(), null);
 		assert match.equals("CGA");
 		
-		match = tree.fuzzyMatch("GCGCAGCT", "FF,FFFFFFFF", stats);
+		match = tree.fuzzyMatch("GCGCAGCT".toCharArray(), "FF,FFFFFFFF".toCharArray(), stats);
 		assert match.equals("");
 		assert stats.nSkippedDuplicate.get() == 1;
 	}

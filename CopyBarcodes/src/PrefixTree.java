@@ -47,19 +47,19 @@ public class PrefixTree {
 		addBarcodeRec(newChild, barcode, pos + 1);
 	}
 
-	public int findBarcodeLen(String read) {
+	public int findBarcodeLen(char[] read) {
 		int len = findBarcodeLenRec(root, read, 0);
 		return len == 0 ? len : len - 1 - OVERHANG_LEN; // trim overhang and an extra length for root
 	}
 
-	private int findBarcodeLenRec(Node node, String read, int pos) {
+	private int findBarcodeLenRec(Node node, char[] read, int pos) {
 		if (node.isBarcode) {
 			return 1;
 		}
 		if (pos == MAX_BARCODE_LEN) { // assume read length is always greater than 12
 			return 0; 
 		}
-		Node link = node.children[read.charAt(pos) - 65];
+		Node link = node.children[read[pos] - 65];
 		if (link != null) {
 			int len = findBarcodeLenRec(link, read, pos + 1);
 			if (len > 0) {
@@ -74,7 +74,7 @@ public class PrefixTree {
 		boolean duplicate = false;
 	}
 	
-	public String fuzzyMatch(String read, String quality, OutputStats stats) {
+	public String fuzzyMatch(char[] read, char[] quality, OutputStats stats) {
 		FuzzyMatchReason fuzzyMatchReason = new FuzzyMatchReason();
 		int len = fuzzyMatchRec(root, read, quality, 0, true, stats == null ? null : fuzzyMatchReason);
 		if (len > 0) {
@@ -91,7 +91,7 @@ public class PrefixTree {
 		return "";
 	}
 	
-	private int fuzzyMatchRec(Node node, String read, String quality, int pos,
+	private int fuzzyMatchRec(Node node, char[] read, char[] quality, int pos,
 			boolean fuzzyMatch, FuzzyMatchReason reason) {
 		if (node.isBarcode) {
 			return 1;
@@ -99,11 +99,11 @@ public class PrefixTree {
 		if (pos == MAX_BARCODE_LEN) { // assume read length is always greater than 12
 			return 0; 
 		}
-		Node link = node.children[read.charAt(pos) - 65];
+		Node link = node.children[read[pos] - 65];
 		if (link != null) {
 			int len = fuzzyMatchRec(link, read, quality, pos + 1, fuzzyMatch, reason);
 			if (len > 0) {
-				fuzzyMatchStr[pos] = read.charAt(pos);
+				fuzzyMatchStr[pos] = read[pos];
 				return len + 1;
 			}
 		}
@@ -111,7 +111,7 @@ public class PrefixTree {
 		// require a unique match at the position to be a valid fuzzy match
 		// the exception to the 'unique match' is in the overhang - we don't actually
 		// care which overhang it is.
-		if (fuzzyMatch && quality.charAt(pos) < minQuality) {
+		if (fuzzyMatch && quality[pos] < minQuality) {
 			int nBarcodesFound = 0;
 			int foundLen = 0;
 			char foundChar = ' ';
@@ -133,7 +133,7 @@ public class PrefixTree {
 			} else if (reason != null && nBarcodesFound > 1) {
 				reason.duplicate = true;
 			}
-		} else if (reason != null && quality.charAt(pos) >= 'F') {
+		} else if (reason != null && quality[pos] >= minQuality) {
 			reason.highQuality = true;
 		}
 		return 0; 
