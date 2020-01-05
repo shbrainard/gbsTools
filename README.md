@@ -16,6 +16,6 @@ export reverseReads=/PATH/TO/REVERSE/READ/FASTQ/GZ/FILE
 export config=/PATH/TO/CONFIG/DOT/FILE
 export barcodes=/PATH/TO/BARCODE/TXT/FILE
 
-java -cp CopyBarcodes.jar CopyBarcodes $forwardReads $reverseReads $barcodes $config [fuzzy|fuzzy debug|retain]
+java -cp CopyBarcodes.jar CopyBarcodes $forwardReads $reverseReads $barcodes $config [fuzzy|fuzzy debug]
 ```
 Benchmarking was performed on a MacBook Pro with a 3.3 GHz Intel Core i7 CPU and 16 GB of 2133 MHz LPDDR3 RAM.  The forward-read file was 28.64 GB, and the reverse-read file was 29.74 GB (each containing roughly 400,000,000 reads).  Because writing to the output file is speed limiting, calling the .jar file with or without fuzzy matching took approximately 450 minutes.
