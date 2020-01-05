@@ -16,15 +16,9 @@ public class PrefixTree {
 	
 	private char[] fuzzyMatchStr;
 	
-	public PrefixTree(boolean includeOverhangs, Config config) {
-		if (includeOverhangs) {
-			// if the enzyme changes, these may need to change
-			overhangs.addAll(config.getOverhangs());
-			OVERHANG_LEN = overhangs.iterator().next().length();
-		} else {
-			overhangs.add("");
-			OVERHANG_LEN = 0;
-		}
+	public PrefixTree(Config config) {
+		overhangs.addAll(config.getOverhangs());
+		OVERHANG_LEN = overhangs.iterator().next().length();
 		minQuality = config.getMinQuality();
 		MAX_BARCODE_LEN = 8 + OVERHANG_LEN;
 		fuzzyMatchStr = new char[MAX_BARCODE_LEN];

@@ -31,9 +31,9 @@ public class CopyBarcodes {
 	public static void main(String[] args) throws Exception {
 		if (args.length < 4) {
 			System.out.println("Usage: <path to forward file, .gz> <path to reverse file, .gz> "
-					+ "<path to barcode file, text>, <path to config file>, (optional) 'fuzzy|retain' to do fuzzy matching,"
-					+ " or retain to keep unmatched lines as they are."
-					+ "output is stored in reverseFile.barcoded.gz");
+					+ "<path to barcode file, text>, <path to config file>, (optional) 'fuzzy' to do fuzzy matching,"
+					+ " (optional) 'debug' to print debug information about unfuzzable lines."
+					+ "output is stored in <forwardFile>.interleaved.barcoded.gz");
 			System.exit(-1);
 		}
 		long startTime = System.currentTimeMillis();
@@ -43,12 +43,10 @@ public class CopyBarcodes {
 		String configFile = args[3];
 		boolean fuzzyMatch = args.length > 4 && args[4].equalsIgnoreCase("fuzzy");
 		boolean debug = fuzzyMatch && args.length > 5 && args[5].equalsIgnoreCase("debug");
-		boolean retain = args.length > 4 && args[4].equalsIgnoreCase("retain");
-		String outputFileRev = reverseFile.substring(0, reverseFile.lastIndexOf(".gz")) + ".barcoded.reverse.gz";
-		String outputFileFwd = forwardFile.substring(0, forwardFile.lastIndexOf(".gz")) + ".barcoded.forward.gz";
+		String outputFile = forwardFile.substring(0, forwardFile.lastIndexOf(".gz")) + ".interleaved.barcoded.gz";
 		
 		// load barcodes
-		PrefixTree barcodes = new PrefixTree(!retain, Config.loadFromFile(configFile));
+		PrefixTree barcodes = new PrefixTree(Config.loadFromFile(configFile));
 		String line = "";
 		InflaterInputStream iisFwd = new GZIPInputStream(
 				new FileInputStream(forwardFile));
@@ -76,10 +74,8 @@ public class CopyBarcodes {
 		// unusual optimizations to minimize object allocations (looping & calling charAt vs substring, for instance)
 		
 		// read through forward-file, extract and attach barcodes to reverse file
-		try (BufferedWriter outRev = new BufferedWriter(new OutputStreamWriter(
-				new GZIPOutputStream(new FileOutputStream(outputFileRev))));
-				BufferedWriter outFwd = retain ? null : new BufferedWriter(new OutputStreamWriter(
-						new GZIPOutputStream(new FileOutputStream(outputFileFwd))));
+		try (BufferedWriter out = new BufferedWriter(new OutputStreamWriter(
+				new GZIPOutputStream(new FileOutputStream(outputFile))));
 				BufferedWriter debugOut = debug ? new BufferedWriter(new OutputStreamWriter(
 						new FileOutputStream("debugOut.txt"))) : null;
 				BufferedReader forward = new BufferedReader(new InputStreamReader(iisFwd));
@@ -101,24 +97,30 @@ public class CopyBarcodes {
 					String forwardLine = "";
 					while ((forwardLine = forward.readLine()) != null) {
 						Read read = availableReadPool.take();
-						loadRead(forward, reverse, forwardLine, read.forwardLineSet, read.reverseLineSet);
-						read.barcodeLen = barcodes.findBarcodeLen(read.forwardLineSet[1]);
-						if (read.barcodeLen >= MIN_BARCODE_LEN || retain) {
-							stats.nWritten.getAndIncrement();
-						} else if (fuzzyMatch) {
-							String fuzzedMatch = barcodes.fuzzyMatch(read.forwardLineSet[1],
-									read.forwardLineSet[3], debug ? stats : null);
-							if (fuzzedMatch.length() >= MIN_BARCODE_LEN) {
-								stats.nFuzzed.getAndIncrement();
-								read.fuzzedMatch = fuzzedMatch;
+						if (loadRead(forward, reverse, forwardLine, read.forwardLineSet, read.reverseLineSet)) {
+							read.barcodeLen = barcodes.findBarcodeLen(read.forwardLineSet[1]);
+							if (read.barcodeLen >= MIN_BARCODE_LEN) {
+								stats.nWritten.getAndIncrement();
+							} else if (fuzzyMatch) {
+								String fuzzedMatch = barcodes.fuzzyMatch(read.forwardLineSet[1],
+										read.forwardLineSet[3], debug ? stats : null);
+								if (fuzzedMatch.length() >= MIN_BARCODE_LEN) {
+									stats.nFuzzed.getAndIncrement();
+									read.fuzzedMatch = fuzzedMatch;
+								} else {
+									read.fuzzedMatch = null; // clear from possible previous run
+									stats.nSkipped.getAndIncrement();
+								}
 							} else {
-								read.fuzzedMatch = null; // clear from possible previous run
 								stats.nSkipped.getAndIncrement();
 							}
+							loadedReads.put(read);
 						} else {
+							read.barcodeLen = 0;
+							read.fuzzedMatch = null;
 							stats.nSkipped.getAndIncrement();
+							stats.nSkippedHeader.getAndIncrement();
 						}
-						loadedReads.put(read);
 					}
 				} catch (InterruptedException | IOException e) {
 					e.printStackTrace();
@@ -128,7 +130,7 @@ public class CopyBarcodes {
 				try {
 					while (true) {
 						Read read = loadedReads.take();
-						persistBarcodedRead(fuzzyMatch, retain, outRev, outFwd, debugOut, read);
+						persistBarcodedRead(fuzzyMatch, out, debugOut, read);
 						availableReadPool.put(read);
 					}
 				} catch (InterruptedException e) {
@@ -136,7 +138,7 @@ public class CopyBarcodes {
 					try {
 						while (!loadedReads.isEmpty()) {
 							Read read = loadedReads.take();
-							persistBarcodedRead(fuzzyMatch, retain,outRev, outFwd, debugOut, read);
+							persistBarcodedRead(fuzzyMatch, out, debugOut, read);
 						}
 					} catch (InterruptedException | IOException e1) {
 						e1.printStackTrace();
@@ -176,7 +178,8 @@ public class CopyBarcodes {
 		if (debug) {
 			System.out.println("Skipped " + stats.nSkippedDuplicate.get() + " due to non-unique fixes, " 
 					+ stats.nSkippedQuality.get() + " due to quality scores, and " 
-					+ stats.nSkippedMultipleBadReads.get() + " due to more than one character being off");
+					+ stats.nSkippedMultipleBadReads.get() + " due to more than one character being off, and "
+					+ stats.nSkippedHeader.get() + " due to a mismatched header");
 		}
 	}
 
@@ -200,62 +203,60 @@ public class CopyBarcodes {
 		return minDistance;
 	}
 
-	private static void persistBarcodedRead(boolean fuzzyMatch, boolean retain,
-			BufferedWriter outRev, BufferedWriter outFwd, BufferedWriter debugOut, Read read) throws IOException {
+	private static void persistBarcodedRead(boolean fuzzyMatch,
+			BufferedWriter out, BufferedWriter debugOut, Read read) throws IOException {
 		// only keep properly barcoded lines
-		if (read.barcodeLen >= MIN_BARCODE_LEN || retain) {
-			if (!retain) {
-				outFwd.write(read.forwardLineSet[0]);
-				outFwd.newLine();
-				outFwd.write(read.forwardLineSet[1]);
-				outFwd.newLine();
-				outFwd.write(read.forwardLineSet[2]);
-				outFwd.newLine();
-				outFwd.write(read.forwardLineSet[3]);
-				outFwd.newLine();
-			}
+		if (read.barcodeLen >= MIN_BARCODE_LEN) {
+			out.write(read.forwardLineSet[0]);
+			out.newLine();
+			out.write(read.forwardLineSet[1]);
+			out.newLine();
+			out.write(read.forwardLineSet[2]);
+			out.newLine();
+			out.write(read.forwardLineSet[3]);
+			out.newLine();
 			
-			outRev.write(read.reverseLineSet[0]);
-			outRev.newLine();
+			out.write(read.reverseLineSet[0]);
+			out.newLine();
 			// write the barcode
 			for (int i = 0; i < read.barcodeLen; i++) {
-				outRev.write(read.forwardLineSet[1].charAt(i));
+				out.write(read.forwardLineSet[1].charAt(i));
 			}
-			outRev.write(read.reverseLineSet[1]);
-			outRev.newLine();
-			outRev.write(read.reverseLineSet[2]);
-			outRev.newLine();
+			out.write(read.reverseLineSet[1]);
+			out.newLine();
+			out.write(read.reverseLineSet[2]);
+			out.newLine();
 			// write the quality for the barcode
 			for (int i = 0; i < read.barcodeLen; i++) {
-				outRev.write(read.forwardLineSet[3].charAt(i));
+				out.write(read.forwardLineSet[3].charAt(i));
 			}
-			outRev.write(read.reverseLineSet[3]);
-			outRev.newLine();
+			out.write(read.reverseLineSet[3]);
+			out.newLine();
 		} else if (read.fuzzedMatch != null) {
-			outFwd.write(read.forwardLineSet[0]);
-			outFwd.newLine();
-			outFwd.write(read.fuzzedMatch);
-			outFwd.write(read.forwardLineSet[1].substring(read.fuzzedMatch.length()));
-			outFwd.newLine();
-			outFwd.write(read.forwardLineSet[2]);
-			outFwd.newLine();
-			outFwd.write(read.forwardLineSet[3]);
-			outFwd.newLine();
+			out.write(read.forwardLineSet[0]);
+			out.newLine();
+			out.write(read.fuzzedMatch);
+			out.write(read.forwardLineSet[1].substring(read.fuzzedMatch.length()));
+			out.newLine();
+			out.write(read.forwardLineSet[2]);
+			out.newLine();
+			out.write(read.forwardLineSet[3]);
+			out.newLine();
 
-			outRev.write(read.reverseLineSet[0]);
-			outRev.newLine();
+			out.write(read.reverseLineSet[0]);
+			out.newLine();
 			// write the barcode
-			outRev.write(read.fuzzedMatch);
-			outRev.write(read.reverseLineSet[1]);
-			outRev.newLine();
-			outRev.write(read.reverseLineSet[2]);
-			outRev.newLine();
+			out.write(read.fuzzedMatch);
+			out.write(read.reverseLineSet[1]);
+			out.newLine();
+			out.write(read.reverseLineSet[2]);
+			out.newLine();
 			// write the quality for the barcode - uncorrected
 			for (int i = 0; i < read.fuzzedMatch.length(); i++) {
-				outRev.write(read.forwardLineSet[3].charAt(i));
+				out.write(read.forwardLineSet[3].charAt(i));
 			}
-			outRev.write(read.reverseLineSet[3]);
-			outRev.newLine();
+			out.write(read.reverseLineSet[3]);
+			out.newLine();
 		} else if (debugOut != null) {
 			debugOut.write(read.forwardLineSet[1]);
 			debugOut.newLine();
@@ -264,7 +265,7 @@ public class CopyBarcodes {
 		}
 	}
 
-	private static void loadRead(BufferedReader forward, BufferedReader reverse, String forwardLine,
+	private static boolean loadRead(BufferedReader forward, BufferedReader reverse, String forwardLine,
 			String[] forwardLineSet, String[] reverseLineSet) throws IOException {
 		// read sequence id line, barcode line, delimiter, and quality
 		forwardLineSet[0] = forwardLine;
@@ -275,5 +276,11 @@ public class CopyBarcodes {
 		reverseLineSet[2] = reverse.readLine();
 		forwardLineSet[3] = forward.readLine();
 		reverseLineSet[3] = reverse.readLine();
+		
+		// verify the headers match on x & y
+		String[] fwdHeader = forwardLineSet[0].split(":");
+		String[] revHeader = reverseLineSet[0].split(":");
+		return fwdHeader.length > 6 && revHeader.length > 6 
+				&& fwdHeader[5].equals(revHeader[5]) && fwdHeader[6].equals(revHeader[6]);
 	}
 }
