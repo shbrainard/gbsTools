@@ -20,10 +20,12 @@ import java.util.zip.InflaterInputStream;
 public class CopyBarcodes {
 
 	private static final int MIN_BARCODE_LEN = 4;
+	private static final int MAX_LINE_LEN = 400;
 	
 	private static class Read {
-		String[] forwardLineSet = new String[4];
-		String[] reverseLineSet = new String[4];
+		char[][] forwardLineSet = new char[4][MAX_LINE_LEN];
+		char[][] reverseLineSet = new char[4][MAX_LINE_LEN];
+		int[] lineLens = new int[8];
 		int barcodeLen;
 		String fuzzedMatch = null;
 	}
@@ -36,7 +38,7 @@ public class CopyBarcodes {
 					+ "output is stored in <forwardFile>.interleaved.barcoded.gz");
 			System.exit(-1);
 		}
-		long startTime = System.currentTimeMillis();
+		
 		String forwardFile = args[0];
 		String reverseFile = args[1];
 		String barcodeFile = args[2];
@@ -69,6 +71,7 @@ public class CopyBarcodes {
 			System.out.println("There is a risk of mis-fuzzing because the barcodes are too similar");
 		}
 		OutputStats stats = new OutputStats();
+		long startTime = System.currentTimeMillis();
 		
 		// This inner loop gets called half a billion times, so there are some
 		// unusual optimizations to minimize object allocations (looping & calling charAt vs substring, for instance)
@@ -78,13 +81,13 @@ public class CopyBarcodes {
 				new GZIPOutputStream(new FileOutputStream(outputFile))));
 				BufferedWriter debugOut = debug ? new BufferedWriter(new OutputStreamWriter(
 						new FileOutputStream("debugOut.txt"))) : null;
-				BufferedReader forward = new BufferedReader(new InputStreamReader(iisFwd));
-				BufferedReader reverse = new BufferedReader(new InputStreamReader(iisRev));) {
+				ReusingBufferedReader forward = new ReusingBufferedReader(new InputStreamReader(iisFwd));
+				ReusingBufferedReader reverse = new ReusingBufferedReader(new InputStreamReader(iisRev));) {
 
 			// both reading and writing to disk tends to buffer; build up enough 
 			// work in the queue so that one thread can work while the other is flushing/filling the buffer
 			// Generally, the writing thread takes longer than the reading thread
-			int bufferSize = 100; 
+			int bufferSize = 150; 
 			ArrayBlockingQueue<Read> availableReadPool = new ArrayBlockingQueue<>(bufferSize);
 			ArrayBlockingQueue<Read> loadedReads = new ArrayBlockingQueue<>(bufferSize);
 			for (int i = 0; i < bufferSize; i++) {
@@ -97,7 +100,7 @@ public class CopyBarcodes {
 					String forwardLine = "";
 					while ((forwardLine = forward.readLine()) != null) {
 						Read read = availableReadPool.take();
-						if (loadRead(forward, reverse, forwardLine, read.forwardLineSet, read.reverseLineSet)) {
+						if (loadRead(forward, reverse, forwardLine, read)) {
 							read.barcodeLen = barcodes.findBarcodeLen(read.forwardLineSet[1]);
 							if (read.barcodeLen >= MIN_BARCODE_LEN) {
 								stats.nWritten.getAndIncrement();
@@ -207,80 +210,114 @@ public class CopyBarcodes {
 			BufferedWriter out, BufferedWriter debugOut, Read read) throws IOException {
 		// only keep properly barcoded lines
 		if (read.barcodeLen >= MIN_BARCODE_LEN) {
-			out.write(read.forwardLineSet[0]);
+			out.write(read.forwardLineSet[0], 0, read.lineLens[0]);
 			out.newLine();
-			out.write(read.forwardLineSet[1]);
+			out.write(read.forwardLineSet[1], 0, read.lineLens[1]);
 			out.newLine();
-			out.write(read.forwardLineSet[2]);
+			out.write(read.forwardLineSet[2], 0, read.lineLens[2]);
 			out.newLine();
-			out.write(read.forwardLineSet[3]);
+			out.write(read.forwardLineSet[3], 0, read.lineLens[3]);
 			out.newLine();
 			
-			out.write(read.reverseLineSet[0]);
+			out.write(read.reverseLineSet[0], 0, read.lineLens[4]);
 			out.newLine();
 			// write the barcode
 			for (int i = 0; i < read.barcodeLen; i++) {
-				out.write(read.forwardLineSet[1].charAt(i));
+				out.write(read.forwardLineSet[1][i]);
 			}
-			out.write(read.reverseLineSet[1]);
+			out.write(read.reverseLineSet[1], 0, read.lineLens[5]);
 			out.newLine();
-			out.write(read.reverseLineSet[2]);
+			out.write(read.reverseLineSet[2], 0, read.lineLens[6]);
 			out.newLine();
 			// write the quality for the barcode
 			for (int i = 0; i < read.barcodeLen; i++) {
-				out.write(read.forwardLineSet[3].charAt(i));
+				out.write(read.forwardLineSet[3][i]);
 			}
-			out.write(read.reverseLineSet[3]);
+			out.write(read.reverseLineSet[3], 0, read.lineLens[7]);
 			out.newLine();
 		} else if (read.fuzzedMatch != null) {
-			out.write(read.forwardLineSet[0]);
+			out.write(read.forwardLineSet[0], 0, read.lineLens[0]);
 			out.newLine();
 			out.write(read.fuzzedMatch);
-			out.write(read.forwardLineSet[1].substring(read.fuzzedMatch.length()));
+			out.write(read.forwardLineSet[1], read.fuzzedMatch.length(), read.lineLens[1] - read.fuzzedMatch.length());
 			out.newLine();
-			out.write(read.forwardLineSet[2]);
+			out.write(read.forwardLineSet[2], 0, read.lineLens[2]);
 			out.newLine();
-			out.write(read.forwardLineSet[3]);
+			out.write(read.forwardLineSet[3], 0, read.lineLens[3]);
 			out.newLine();
 
-			out.write(read.reverseLineSet[0]);
+			out.write(read.reverseLineSet[0], 0, read.lineLens[4]);
 			out.newLine();
 			// write the barcode
 			out.write(read.fuzzedMatch);
-			out.write(read.reverseLineSet[1]);
+			out.write(read.reverseLineSet[1], 0, read.lineLens[5]);
 			out.newLine();
-			out.write(read.reverseLineSet[2]);
+			out.write(read.reverseLineSet[2], 0, read.lineLens[6]);
 			out.newLine();
 			// write the quality for the barcode - uncorrected
 			for (int i = 0; i < read.fuzzedMatch.length(); i++) {
-				out.write(read.forwardLineSet[3].charAt(i));
+				out.write(read.forwardLineSet[3][i]);
 			}
-			out.write(read.reverseLineSet[3]);
+			out.write(read.reverseLineSet[3], 0, read.lineLens[7]);
 			out.newLine();
 		} else if (debugOut != null) {
-			debugOut.write(read.forwardLineSet[1]);
+			debugOut.write(read.forwardLineSet[1], 0, read.lineLens[1]);
 			debugOut.newLine();
-			debugOut.write(read.forwardLineSet[3]);
+			debugOut.write(read.forwardLineSet[3], 0, read.lineLens[3]);
 			debugOut.newLine();
 		}
 	}
 
-	private static boolean loadRead(BufferedReader forward, BufferedReader reverse, String forwardLine,
-			String[] forwardLineSet, String[] reverseLineSet) throws IOException {
+	private static boolean loadRead(ReusingBufferedReader forward, ReusingBufferedReader reverse, String forwardLine,
+			Read read) throws IOException {
 		// read sequence id line, barcode line, delimiter, and quality
-		forwardLineSet[0] = forwardLine;
-		reverseLineSet[0] = reverse.readLine();
-		forwardLineSet[1] = forward.readLine();
-		reverseLineSet[1] = reverse.readLine();
-		forwardLineSet[2] = forward.readLine();
-		reverseLineSet[2] = reverse.readLine();
-		forwardLineSet[3] = forward.readLine();
-		reverseLineSet[3] = reverse.readLine();
+		read.forwardLineSet[0] = forwardLine.toCharArray();
+		read.lineLens[0] = forwardLine.length();
+		read.lineLens[1] = forward.readLine(read.forwardLineSet[1]);
+		read.lineLens[2] = forward.readLine(read.forwardLineSet[2]);
+		read.lineLens[3] = forward.readLine(read.forwardLineSet[3]);
+		read.lineLens[4] = reverse.readLine(read.reverseLineSet[0]);
+		read.lineLens[5] = reverse.readLine(read.reverseLineSet[1]);
+		read.lineLens[6] = reverse.readLine(read.reverseLineSet[2]);
+		read.lineLens[7] = reverse.readLine(read.reverseLineSet[3]);
 		
-		// verify the headers match on x & y
-		String[] fwdHeader = forwardLineSet[0].split(":");
-		String[] revHeader = reverseLineSet[0].split(":");
-		return fwdHeader.length > 6 && revHeader.length > 6 
-				&& fwdHeader[5].equals(revHeader[5]) && fwdHeader[6].equals(revHeader[6]);
+		return checkHeaders(read);
+	}
+
+	// verify the headers match on x & y
+	private static boolean checkHeaders(Read read) {
+		int posFwd = 0;
+		int nSplitsFound = 0;
+		while (posFwd < read.lineLens[0] && nSplitsFound < 5) {
+			if (read.forwardLineSet[0][posFwd] == ':') {
+				nSplitsFound++;
+			}
+			posFwd++;
+		}
+		if (nSplitsFound < 5) {
+			return false;
+		}
+		int posRev = 0;
+		nSplitsFound = 0;
+		while (posRev < read.lineLens[4] && nSplitsFound < 5) {
+			if (read.reverseLineSet[0][posRev] == ':') {
+				nSplitsFound++;
+			}
+			posRev++;
+		}
+		if (nSplitsFound < 5) {
+			return false;
+		}
+		while (posFwd < read.lineLens[0] && posRev < read.lineLens[4] && nSplitsFound < 7) {
+			if (read.forwardLineSet[0][posFwd] != read.reverseLineSet[0][posRev]) {
+				return false;
+			}
+			if (read.reverseLineSet[0][posRev] == ':') {
+				nSplitsFound++;
+			}
+			posFwd++;
+			posRev++;
+		}
+		return true;
 	}
 }
