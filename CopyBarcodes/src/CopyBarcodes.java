@@ -117,13 +117,13 @@ public class CopyBarcodes {
 							} else {
 								stats.nSkipped.getAndIncrement();
 							}
-							loadedReads.put(read);
 						} else {
 							read.barcodeLen = 0;
 							read.fuzzedMatch = null;
 							stats.nSkipped.getAndIncrement();
 							stats.nSkippedHeader.getAndIncrement();
 						}
+						loadedReads.put(read);
 					}
 				} catch (InterruptedException | IOException e) {
 					e.printStackTrace();
