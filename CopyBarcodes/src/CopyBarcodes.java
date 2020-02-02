@@ -1,12 +1,15 @@
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.CountDownLatch;
@@ -20,16 +23,8 @@ import java.util.zip.InflaterInputStream;
 public class CopyBarcodes {
 
 	private static final int MIN_BARCODE_LEN = 4;
-	private static final int MAX_LINE_LEN = 400;
+	static final int MAX_LINE_LEN = 400;
 	
-	private static class Read {
-		char[][] forwardLineSet = new char[4][MAX_LINE_LEN];
-		char[][] reverseLineSet = new char[4][MAX_LINE_LEN];
-		int[] lineLens = new int[8];
-		int barcodeLen;
-		String fuzzedMatch = null;
-	}
-
 	public static void main(String[] args) throws Exception {
 		if (args.length < 4) {
 			System.out.println("Usage: <path to forward file, .gz> <path to reverse file, .gz> "
@@ -45,26 +40,16 @@ public class CopyBarcodes {
 		String configFile = args[3];
 		boolean fuzzyMatch = args.length > 4 && args[4].equalsIgnoreCase("fuzzy");
 		boolean debug = fuzzyMatch && args.length > 5 && args[5].equalsIgnoreCase("debug");
-		String outputFile = forwardFile.substring(0, forwardFile.lastIndexOf(".gz")) + ".interleaved.barcoded.gz";
+		String outputFile = forwardFile.substring(0, forwardFile.lastIndexOf(".gz")) + "interleaved.fq.gz";
 		
 		// load barcodes
 		PrefixTree barcodes = new PrefixTree(Config.loadFromFile(configFile));
-		String line = "";
 		InflaterInputStream iisFwd = new GZIPInputStream(
 				new FileInputStream(forwardFile));
 		InflaterInputStream iisRev = new GZIPInputStream(
 				new FileInputStream(reverseFile));
 		
-		Set<String> barcodeSet = new HashSet<>();
-		try (BufferedReader reader = new BufferedReader(new FileReader(barcodeFile))) {
-			while ((line = reader.readLine()) != null) {
-				int index = line.indexOf("\t");
-				if (index > 0) {
-					barcodes.addBarcode(line.substring(0, index));
-					barcodeSet.add(line.substring(0, index));
-				}
-			}
-		}
+		Set<String> barcodeSet = loadBarcodeFile(barcodeFile, barcodes, new HashMap<>());
 		int minEditDistance = getMinEditDistance(barcodeSet);
 		System.out.println("Min edit distance: " + minEditDistance);
 		if (minEditDistance <= 2) {
@@ -96,38 +81,7 @@ public class CopyBarcodes {
 			CountDownLatch persistFinished = new CountDownLatch(1);
 			ExecutorService exec = Executors.newFixedThreadPool(2);
 			Future<?> load = exec.submit(() -> {
-				try {
-					String forwardLine = "";
-					while ((forwardLine = forward.readLine()) != null) {
-						Read read = availableReadPool.take();
-						if (loadRead(forward, reverse, forwardLine, read)) {
-							read.barcodeLen = barcodes.findBarcodeLen(read.forwardLineSet[1]);
-							if (read.barcodeLen >= MIN_BARCODE_LEN) {
-								stats.nWritten.getAndIncrement();
-							} else if (fuzzyMatch) {
-								String fuzzedMatch = barcodes.fuzzyMatch(read.forwardLineSet[1],
-										read.forwardLineSet[3], debug ? stats : null);
-								if (fuzzedMatch.length() >= MIN_BARCODE_LEN) {
-									stats.nFuzzed.getAndIncrement();
-									read.fuzzedMatch = fuzzedMatch;
-								} else {
-									read.fuzzedMatch = null; // clear from possible previous run
-									stats.nSkipped.getAndIncrement();
-								}
-							} else {
-								stats.nSkipped.getAndIncrement();
-							}
-						} else {
-							read.barcodeLen = 0;
-							read.fuzzedMatch = null;
-							stats.nSkipped.getAndIncrement();
-							stats.nSkippedHeader.getAndIncrement();
-						}
-						loadedReads.put(read);
-					}
-				} catch (InterruptedException | IOException e) {
-					e.printStackTrace();
-				}
+				doLoad(fuzzyMatch, debug, barcodes, stats, forward, reverse, availableReadPool, loadedReads);
 			});
 			Future<?> persist = exec.submit(() -> {
 				try {
@@ -184,6 +138,66 @@ public class CopyBarcodes {
 					+ stats.nSkippedMultipleBadReads.get() + " due to more than one character being off, and "
 					+ stats.nSkippedHeader.get() + " due to a mismatched header");
 		}
+	}
+
+	public static void doLoad(boolean fuzzyMatch, boolean debug, PrefixTree barcodes, OutputStats stats,
+			ReusingBufferedReader forward, ReusingBufferedReader reverse, ArrayBlockingQueue<Read> availableReadPool,
+			ArrayBlockingQueue<Read> loadedReads) {
+		try {
+			String forwardLine = "";
+			while ((forwardLine = forward.readLine()) != null) {
+				Read read = availableReadPool.take();
+				if (loadRead(forward, reverse, forwardLine, read)) {
+					read.barcodeLen = barcodes.findBarcodeLen(read.forwardLineSet[1]);
+					if (read.barcodeLen >= MIN_BARCODE_LEN) {
+						stats.nWritten.getAndIncrement();
+					} else if (fuzzyMatch) {
+						String fuzzedMatch = barcodes.fuzzyMatch(read.forwardLineSet[1],
+								read.forwardLineSet[3], debug ? stats : null);
+						if (fuzzedMatch.length() >= MIN_BARCODE_LEN) {
+							stats.nFuzzed.getAndIncrement();
+							read.fuzzedMatch = fuzzedMatch;
+						} else {
+							read.fuzzedMatch = null; // clear from possible previous run
+							stats.nSkipped.getAndIncrement();
+						}
+					} else {
+						stats.nSkipped.getAndIncrement();
+					}
+				} else {
+					read.barcodeLen = 0;
+					read.fuzzedMatch = null;
+					stats.nSkipped.getAndIncrement();
+					stats.nSkippedHeader.getAndIncrement();
+				}
+				loadedReads.put(read);
+			}
+		} catch (InterruptedException | IOException e) {
+			e.printStackTrace();
+		}
+	}
+
+	public static Set<String> loadBarcodeFile(String barcodeFile, PrefixTree barcodes, Map<String, String> barcodeToSample)
+			throws IOException, FileNotFoundException {
+		String line;
+		Set<String> barcodeSet = new HashSet<>();
+		try (BufferedReader reader = new BufferedReader(new FileReader(barcodeFile))) {
+			while ((line = reader.readLine()) != null) {
+				int index = line.indexOf("\t");
+				if (index > 0) {
+					String barcode = line.substring(0, index);
+					barcodes.addBarcode(barcode);
+					barcodeSet.add(barcode);
+					int sampleEndIndex = line.indexOf("\t", index + 1);
+					if (sampleEndIndex < 0) {
+						sampleEndIndex = line.length();
+					}
+					String sampleName = line.substring(index + 1, sampleEndIndex);
+					barcodeToSample.put(barcode, sampleName);
+				}
+			}
+		}
+		return barcodeSet;
 	}
 
 	// edit distance not allowing for adds/deletions (only allowing for edits that are made during fuzzing)
