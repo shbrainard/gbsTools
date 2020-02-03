@@ -33,6 +33,6 @@ In addition a population name (a string) should be passsed as the first argument
 
 java -cp gbsTools.jar Demultiplexer <populationName> $forwardReads $reverseReads $barcodes $config [fuzzy|fuzzy debug]
 ```
-Benchmarking was performed on a CentOS Linux distribution, running on a server with 6  server Intel Xeon 2.67 GHz CPUs and 40 GB of RAM.
+Benchmarking was performed on a CentOS Linux distribution, running on a server with 6 Intel Xeon 2.67 GHz CPUs and 40 GB of RAM.  The same two FASTQ files as above were de-multiplexed into their component 192 FASTQ files (each ~200 MB when gzipped) in 160 minutes.
 
 
