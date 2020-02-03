@@ -1,4 +1,4 @@
-# gbs-tools.jar
+# gbsTools
 
 ## CopyBarcodes
 
