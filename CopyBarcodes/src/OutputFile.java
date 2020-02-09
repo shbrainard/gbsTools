@@ -8,9 +8,9 @@ public class OutputFile {
 	private final BufferedWriter forward;
 	private final BufferedWriter reverse;
 
-	public OutputFile(String pop, String sample) throws IOException {
-		String forwardName = pop + "_" + sample + ".F.fq.gz";
-		String reverseName = pop + "_" + sample + ".R.fq.gz";
+	public OutputFile(String pop, String sample, boolean alignmentFile) throws IOException {
+		String forwardName = pop + "_" + sample + (alignmentFile ? ".F" : ".R1") + ".fq.gz";
+		String reverseName = pop + "_" + sample + (alignmentFile ? ".R" : ".R2")  + ".fq.gz";
 
 		forward = new BufferedWriter(new OutputStreamWriter(new GZIPOutputStream(new FileOutputStream(forwardName))));
 		reverse = new BufferedWriter(new OutputStreamWriter(new GZIPOutputStream(new FileOutputStream(reverseName))));

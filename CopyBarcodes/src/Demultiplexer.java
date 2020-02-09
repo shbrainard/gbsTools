@@ -23,7 +23,7 @@ public class Demultiplexer {
 	public static void main(String[] args) throws Exception {
 		if (args.length < 4) {
 			System.out.println("Usage: <population_name> <path to forward file, .gz> <path to reverse file, .gz> "
-					+ "<path to barcode and sample file, text>, <path to config file>. Barcode file should be tab-separated,"
+					+ "<path to barcode and sample file, text>, <path to config file> <optional, -alignFile>. Barcode file should be tab-separated,"
 					+ " with the first two entries being <barcode>\t<sampleName>");
 			System.exit(-1);
 		}
@@ -33,6 +33,7 @@ public class Demultiplexer {
 		String reverseFile = args[2];
 		String barcodeFile = args[3];
 		String configFile = args[4];
+		boolean alignmentFile = args.length > 5 && args[5].equalsIgnoreCase("-alignFile");
 
 		// load barcodes
 		PrefixTree barcodes = new PrefixTree(Config.loadFromFile(configFile));
@@ -46,7 +47,7 @@ public class Demultiplexer {
 		Set<String> barcodeSet = CopyBarcodes.loadBarcodeFile(barcodeFile, barcodes, barcodeToSample);
 		barcodeToSample.forEach((barcode, sample) -> {
 			try {
-				barcodeToOutputFile.put(barcode, new OutputFile(popName, sample));
+				barcodeToOutputFile.put(barcode, new OutputFile(popName, sample, alignmentFile));
 			} catch (IOException e2) {
 				e2.printStackTrace();
 			}
