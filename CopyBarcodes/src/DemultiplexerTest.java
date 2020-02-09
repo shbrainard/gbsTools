@@ -13,13 +13,16 @@ public class DemultiplexerTest {
 	public void demultiplexTest() throws Exception {
 		setUpTestFiles();
 		Demultiplexer.main(new String[] {"pop", "testForward.gz", "testBackwards.gz", "testBarcodes.txt", "default.config"});
-		checkOutput(2, "foo");
-		checkOutput(1, "bar");
+		checkOutput(2, "foo", ".F.fq.gz");
+		checkOutput(1, "bar", ".F.fq.gz");
+		Demultiplexer.main(new String[] {"pop", "testForward.gz", "testBackwards.gz", "testBarcodes.txt", "default.config", "-alignFile"});
+		checkOutput(2, "foo", ".R1.fq.gz");
+		checkOutput(1, "bar", ".R1.fq.gz");
 	}
 
-	private void checkOutput(int numExpected, String sample) throws Exception {
+	private void checkOutput(int numExpected, String sample, String suffix) throws Exception {
 		BufferedReader reader = new BufferedReader(new InputStreamReader(
-				new GZIPInputStream(new FileInputStream("pop_" + sample + ".F.fq.gz"))));
+				new GZIPInputStream(new FileInputStream("pop_" + sample + suffix))));
 		int nReads = 0;
 		while (reader.readLine() != null) {
 			nReads++;
