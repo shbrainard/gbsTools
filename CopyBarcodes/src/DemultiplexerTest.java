@@ -1,7 +1,9 @@
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.io.FileWriter;
 import java.io.InputStreamReader;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
@@ -13,6 +15,39 @@ public class DemultiplexerTest {
 	@Test
 	public void demultiplexTest() throws Exception {
 		setUpTestFiles();
+		clearOldFiles();
+		
+		createTestConfig(false);
+		Demultiplexer.main(new String[] {"test.config"});
+		checkOutput(2, "foo", ".R1.fq.gz");
+		checkOutput(1, "bar", ".R2.fq.gz");
+		
+		createTestConfig(true);
+		Demultiplexer.main(new String[] {"test.config"});
+		checkOutput(2, "foo", ".F.fq.gz");
+		checkOutput(1, "bar", ".R.fq.gz");
+	}
+	
+	private void createTestConfig(boolean align) throws Exception {
+		try (BufferedWriter out = new BufferedWriter(new FileWriter("test.config"))) {
+			out.write("minQuality=I");
+			out.newLine();
+			out.write("overhang=CAGC,CTGC");
+			out.newLine();
+			out.write("sourceFileForward=testForward.gz");
+			out.newLine();
+			out.write("barcodeFile=testBarcodes.txt");
+			out.newLine();
+			out.write("sourceFileReverse=testBackwards.gz");
+			out.newLine();
+			out.write("align=" + align);
+			out.newLine();
+			out.write("population=pop");
+			out.newLine();
+		}
+	}
+
+	private void clearOldFiles() {
 		// clear old output now that we don't overwrite
 		new File("pop_foo.R1.fq.gz").delete();
 		new File("pop_foo.R2.fq.gz").delete();
@@ -22,13 +57,6 @@ public class DemultiplexerTest {
 		new File("pop_bar.R2.fq.gz").delete();
 		new File("pop_bar.F.fq.gz").delete();
 		new File("pop_bar.R.fq.gz").delete();
-		
-		Demultiplexer.main(new String[] {"pop", "testForward.gz", "testBackwards.gz", "testBarcodes.txt", "default.config"});
-		checkOutput(2, "foo", ".R1.fq.gz");
-		checkOutput(1, "bar", ".R2.fq.gz");
-		Demultiplexer.main(new String[] {"pop", "testForward.gz", "testBackwards.gz", "testBarcodes.txt", "default.config", "-alignFile"});
-		checkOutput(2, "foo", ".F.fq.gz");
-		checkOutput(1, "bar", ".R.fq.gz");
 	}
 
 	private void checkOutput(int numExpected, String sample, String suffix) throws Exception {

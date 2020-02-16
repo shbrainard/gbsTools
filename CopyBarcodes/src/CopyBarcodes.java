@@ -26,24 +26,23 @@ public class CopyBarcodes {
 	static final int MAX_LINE_LEN = 400;
 	
 	public static void main(String[] args) throws Exception {
-		if (args.length < 4) {
-			System.out.println("Usage: <path to forward file, .gz> <path to reverse file, .gz> "
-					+ "<path to barcode file, text>, <path to config file>, (optional) 'fuzzy' to do fuzzy matching,"
-					+ " (optional) 'debug' to print debug information about unfuzzable lines."
+		if (args.length != 1) {
+			System.out.println("Usage: <path to config file>."
 					+ "output is stored in <forwardFile>.interleaved.barcoded.gz");
 			System.exit(-1);
 		}
 		
-		String forwardFile = args[0];
-		String reverseFile = args[1];
-		String barcodeFile = args[2];
-		String configFile = args[3];
-		boolean fuzzyMatch = args.length > 4 && args[4].equalsIgnoreCase("fuzzy");
-		boolean debug = fuzzyMatch && args.length > 5 && args[5].equalsIgnoreCase("debug");
-		String outputFile = forwardFile.substring(0, forwardFile.lastIndexOf(".gz")) + "interleaved.fq.gz";
+		Config config = Config.loadFromFile(args[0]);
+		
+		String forwardFile = config.getSourceFileForward();
+		String reverseFile = config.getSourceFileReverse();
+		String barcodeFile = config.getBarcodes();
+		boolean debug = config.isDebugOut();
+		boolean fuzzyMatch = config.isFuzzyMatch();
+		String outputFile = forwardFile.substring(0, forwardFile.lastIndexOf(".gz")) + ".interleaved.fq.gz";
 		
 		// load barcodes
-		PrefixTree barcodes = new PrefixTree(Config.loadFromFile(configFile));
+		PrefixTree barcodes = new PrefixTree(config);
 		InflaterInputStream iisFwd = new GZIPInputStream(
 				new FileInputStream(forwardFile));
 		InflaterInputStream iisRev = new GZIPInputStream(
@@ -130,6 +129,7 @@ public class CopyBarcodes {
 		} else {
 			timeStr = duration + " ms";
 		}
+		System.out.println("Ran with config: " + config);
 		System.out.println("Finished, wrote " + stats.nWritten.get() + ", skipped " 
 				+ stats.nSkipped.get() + ", fuzzed " + stats.nFuzzed.get() + " in " + timeStr);
 		if (debug) {

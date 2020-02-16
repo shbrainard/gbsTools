@@ -1,6 +1,8 @@
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.io.FileWriter;
 import java.io.InputStreamReader;
 import java.util.HashSet;
 import java.util.Set;
@@ -14,14 +16,36 @@ public class CopyBarcodesTest {
 	@Test
 	public void smokeTest() throws Exception {
 		setUpTestFiles();
-		CopyBarcodes.main(new String[] {"testForward.gz", "testBackwards.gz", "testBarcodes.txt", "default.config"});
+		createTestConfig(false, false);
+		CopyBarcodes.main(new String[] {"test.config"});
 		checkOutput(2);
-		CopyBarcodes.main(new String[] {"testForward.gz", "testBackwards.gz", "testBarcodes.txt",  "default.config", "fuzzy"});
+		createTestConfig(true, false);
+		CopyBarcodes.main(new String[] {"test.config"});
 		checkOutput(3);
-		CopyBarcodes.main(new String[] {"testForward.gz", "testBackwards.gz", "testBarcodes.txt",  "default.config", "fuzzy", "debug"});
+		createTestConfig(true, true);
+		CopyBarcodes.main(new String[] {"test.config"});
 		checkOutput(3);
 	}
 	
+	private void createTestConfig(boolean fuzzy, boolean debug) throws Exception {
+		try (BufferedWriter out = new BufferedWriter(new FileWriter("test.config"))) {
+			out.write("minQuality=I");
+			out.newLine();
+			out.write("overhang=CAGC,CTGC");
+			out.newLine();
+			out.write("sourceFileForward=testForward.gz");
+			out.newLine();
+			out.write("barcodeFile=testBarcodes.txt");
+			out.newLine();
+			out.write("sourceFileReverse=testBackwards.gz");
+			out.newLine();
+			out.write("fuzzyMatch=" + fuzzy);
+			out.newLine();
+			out.write("debugOut=" + debug);
+			out.newLine();
+		}
+	}
+
 	@Test
 	public void testEditDistance() throws Exception {
 		Set<String> strings = new HashSet<>();
