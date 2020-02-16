@@ -1,4 +1,5 @@
 import java.io.BufferedWriter;
+import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
@@ -12,6 +13,13 @@ public class OutputFile {
 		String forwardName = pop + "_" + sample + (alignmentFile ? ".F" : ".R1") + ".fq.gz";
 		String reverseName = pop + "_" + sample + (alignmentFile ? ".R" : ".R2")  + ".fq.gz";
 
+		int i = 1;
+		while (new File(forwardName).exists() || new File(reverseName).exists()) {
+			forwardName = pop + i + "_" + sample + (alignmentFile ? ".F" : ".R1") + ".fq.gz";
+			reverseName = pop + i + "_" + sample + (alignmentFile ? ".R" : ".R2")  + ".fq.gz";
+			i++;
+		}
+		
 		forward = new BufferedWriter(new OutputStreamWriter(new GZIPOutputStream(new FileOutputStream(forwardName))));
 		reverse = new BufferedWriter(new OutputStreamWriter(new GZIPOutputStream(new FileOutputStream(reverseName))));
 	}

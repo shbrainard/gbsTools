@@ -1,4 +1,5 @@
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.InputStreamReader;
@@ -12,12 +13,22 @@ public class DemultiplexerTest {
 	@Test
 	public void demultiplexTest() throws Exception {
 		setUpTestFiles();
+		// clear old output now that we don't overwrite
+		new File("pop_foo.R1.fq.gz").delete();
+		new File("pop_foo.R2.fq.gz").delete();
+		new File("pop_foo.F.fq.gz").delete();
+		new File("pop_foo.R.fq.gz").delete();
+		new File("pop_bar.R1.fq.gz").delete();
+		new File("pop_bar.R2.fq.gz").delete();
+		new File("pop_bar.F.fq.gz").delete();
+		new File("pop_bar.R.fq.gz").delete();
+		
 		Demultiplexer.main(new String[] {"pop", "testForward.gz", "testBackwards.gz", "testBarcodes.txt", "default.config"});
-		checkOutput(2, "foo", ".F.fq.gz");
-		checkOutput(1, "bar", ".F.fq.gz");
-		Demultiplexer.main(new String[] {"pop", "testForward.gz", "testBackwards.gz", "testBarcodes.txt", "default.config", "-alignFile"});
 		checkOutput(2, "foo", ".R1.fq.gz");
-		checkOutput(1, "bar", ".R1.fq.gz");
+		checkOutput(1, "bar", ".R2.fq.gz");
+		Demultiplexer.main(new String[] {"pop", "testForward.gz", "testBackwards.gz", "testBarcodes.txt", "default.config", "-alignFile"});
+		checkOutput(2, "foo", ".F.fq.gz");
+		checkOutput(1, "bar", ".R.fq.gz");
 	}
 
 	private void checkOutput(int numExpected, String sample, String suffix) throws Exception {
