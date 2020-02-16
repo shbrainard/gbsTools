@@ -1,6 +1,9 @@
+import java.io.BufferedWriter;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -21,22 +24,21 @@ public class Demultiplexer {
 	static final int NUM_PERSIST_THREADS = 5;
 
 	public static void main(String[] args) throws Exception {
-		if (args.length < 4) {
-			System.out.println("Usage: <population_name> <path to forward file, .gz> <path to reverse file, .gz> "
-					+ "<path to barcode and sample file, text>, <path to config file> <optional, -alignFile>. Barcode file should be tab-separated,"
+		if (args.length != 1) {
+			System.out.println("Usage: <path to config file>. Barcode file specified in the config file should be tab-separated,"
 					+ " with the first two entries being <barcode>\t<sampleName>");
 			System.exit(-1);
 		}
+		Config config = Config.loadFromFile(args[0]);
 		
-		String popName = args[0];
-		String forwardFile = args[1];
-		String reverseFile = args[2];
-		String barcodeFile = args[3];
-		String configFile = args[4];
-		boolean alignmentFile = args.length > 5 && args[5].equalsIgnoreCase("-alignFile");
+		String popName = config.getPopulation();
+		String forwardFile = config.getSourceFileForward();
+		String reverseFile = config.getSourceFileReverse();
+		String barcodeFile = config.getBarcodes();
+		boolean alignmentFile = config.isAlign();
 
 		// load barcodes
-		PrefixTree barcodes = new PrefixTree(Config.loadFromFile(configFile));
+		PrefixTree barcodes = new PrefixTree(config);
 		InflaterInputStream iisFwd = new GZIPInputStream(
 				new FileInputStream(forwardFile));
 		InflaterInputStream iisRev = new GZIPInputStream(
@@ -47,7 +49,7 @@ public class Demultiplexer {
 		Set<String> barcodeSet = CopyBarcodes.loadBarcodeFile(barcodeFile, barcodes, barcodeToSample);
 		barcodeToSample.forEach((barcode, sample) -> {
 			try {
-				barcodeToOutputFile.put(barcode, new OutputFile(popName, sample, alignmentFile));
+				barcodeToOutputFile.put(barcode, new OutputFile(popName, sample, alignmentFile, config.isAppend()));
 			} catch (IOException e2) {
 				e2.printStackTrace();
 			}
@@ -65,7 +67,9 @@ public class Demultiplexer {
 		
 		// read through forward-file, extract and attach barcodes to reverse file
 		try (ReusingBufferedReader forward = new ReusingBufferedReader(new InputStreamReader(iisFwd));
-				ReusingBufferedReader reverse = new ReusingBufferedReader(new InputStreamReader(iisRev));) {
+				ReusingBufferedReader reverse = new ReusingBufferedReader(new InputStreamReader(iisRev));
+				BufferedWriter debugOut = config.isDebugOut() ? new BufferedWriter(new OutputStreamWriter(
+						new FileOutputStream("debugOut.txt"))) : null;) {
 
 			// both reading and writing to disk tends to buffer; build up enough 
 			// work in the queue so that one thread can work while the other is flushing/filling the buffer
@@ -79,12 +83,13 @@ public class Demultiplexer {
 			CountDownLatch persistFinished = new CountDownLatch(NUM_PERSIST_THREADS);
 			ExecutorService exec = Executors.newFixedThreadPool(NUM_PERSIST_THREADS + 1);
 			Future<?> load = exec.submit(() -> {
-				CopyBarcodes.doLoad(true, false, barcodes, stats, forward, reverse, availableReadPool, loadedReads);
+				CopyBarcodes.doLoad(config.isFuzzyMatch(), config.isDebugOut(), barcodes, stats, forward, reverse, availableReadPool, loadedReads);
 			});
 			List<Future<?>> persists = new ArrayList<>();
 			for (int i = 0; i < NUM_PERSIST_THREADS; i++) {
 				persists.add(exec.submit(() -> {
-					doWrite(barcodeToOutputFile, availableReadPool, loadedReads, persistFinished);
+					doWrite(barcodeToOutputFile, availableReadPool, loadedReads, persistFinished,
+							debugOut);
 				}));
 			}
 			
@@ -118,16 +123,23 @@ public class Demultiplexer {
 		} else {
 			timeStr = duration + " ms";
 		}
+		System.out.println("Ran with config: " + config);
 		System.out.println("Finished, wrote " + stats.nWritten.get() + ", skipped " 
 				+ stats.nSkipped.get() + ", fuzzed " + stats.nFuzzed.get() + " in " + timeStr);
+		if (config.isDebugOut()) {
+			System.out.println("Skipped " + stats.nSkippedDuplicate.get() + " due to non-unique fixes, " 
+					+ stats.nSkippedQuality.get() + " due to quality scores, and " 
+					+ stats.nSkippedMultipleBadReads.get() + " due to more than one character being off, and "
+					+ stats.nSkippedHeader.get() + " due to a mismatched header");
+		}
 	}
 
 	private static void doWrite(Map<String, OutputFile> barcodeToOutputFile, ArrayBlockingQueue<Read> availableReadPool,
-			ArrayBlockingQueue<Read> loadedReads, CountDownLatch persistFinished) {
+			ArrayBlockingQueue<Read> loadedReads, CountDownLatch persistFinished, BufferedWriter debugOut) {
 		try {
 			while (true) {
 				Read read = loadedReads.take();
-				persistBarcodedRead(barcodeToOutputFile, read);
+				persistBarcodedRead(barcodeToOutputFile, read, debugOut);
 				availableReadPool.put(read);
 			}
 		} catch (InterruptedException e) {
@@ -135,7 +147,7 @@ public class Demultiplexer {
 			try {
 				while (!loadedReads.isEmpty()) {
 					Read read = loadedReads.take();
-					persistBarcodedRead(barcodeToOutputFile, read);
+					persistBarcodedRead(barcodeToOutputFile, read, debugOut);
 				}
 			} catch (InterruptedException | IOException e1) {
 				e1.printStackTrace();
@@ -147,7 +159,7 @@ public class Demultiplexer {
 		}
 	}
 
-	private static void persistBarcodedRead(Map<String, OutputFile> outputs, Read read) throws IOException {
+	private static void persistBarcodedRead(Map<String, OutputFile> outputs, Read read, BufferedWriter debugOut) throws IOException {
 		// only keep properly barcoded lines
 		if (read.barcodeLen >= MIN_BARCODE_LEN) {
 			String barcode = new String(read.forwardLineSet[1], 0, read.barcodeLen);
@@ -156,6 +168,13 @@ public class Demultiplexer {
 		} else if (read.fuzzedMatch != null) {
 			OutputFile output = outputs.get(read.fuzzedMatch);
 			output.write(read, read.fuzzedMatch.length());
+		} else if (debugOut != null) {
+			synchronized (debugOut) {
+				debugOut.write(read.forwardLineSet[1], 0, read.lineLens[1]);
+				debugOut.newLine();
+				debugOut.write(read.forwardLineSet[3], 0, read.lineLens[3]);
+				debugOut.newLine();
+			}
 		}
 	}
 }
