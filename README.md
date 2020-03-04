@@ -1,8 +1,8 @@
 # gbsTools
 
 ## .config file format:
- * Accepts arguments in standard java.util.Properties format:
- * One per line, <argumentName>=<argumentValue>, with list values (such as overhangs) delimited by commas.
+ * Accepts arguments in standard java.util.Properties format, i.e., one per line: ```<argumentName>=<argumentValue>```
+ * List values (such as overhangs) are delimited by commas
  
  *Required values:*
  1) minQuality: the minimum quality score that will prevent fuzzy matching bases that were called >= this quality
