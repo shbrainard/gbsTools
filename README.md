@@ -1,22 +1,22 @@
 # gbsTools
 
-## Config file format:
+## .config file format:
  * Accepts arguments in standard java.util.Properties format:
  * One per line, <argumentName>=<argumentValue>, with list values (such as overhangs) delimited by commas.
- * 
- * Required values:
- * minQuality - the minimum quality score to prevent fuzzy matching values read with this quality
- * barcodeFile - the path to the file containing barcode information, tab separated
- * sourceFileForward - the path to the file containing the forward reads
- * sourceFileReverse - the path to the file containing the reverse reads
- * overhang - a comma-separated list of overhangs for this data
- * 
- * Optional values:
- * population - required for demultiplexing, the population to use in the output file names
- * align - true|false, whether the file should be output with .F|R.fq.gz, or R1|R2.fq.gz (default false, which outputs R1|R2)
- * append - if the output files already exist, should we append to it (default is false, we overwrite instead)
- * fuzzyMatch - should the program attempt to fuzzy match barcodes (default true)
- * debugOut - should the program generate a debug output file with all the reads that failed to be parsed
+ 
+ *Required values:*
+ 1) minQuality: the minimum quality score that will prevent fuzzy matching bases that were called >= this quality
+ 2) barcodeFile: path to the file containing barcode information (tab separated)
+ 3) sourceFileForward: the path to the file containing the forward reads (fq.gz)
+ 4) sourceFileReverse: the path to the file containing the reverse reads (fq.gz)
+ 5) overhang: a comma-separated list of overhangs for this data (can accept multiple overhangs for double digests)
+ 
+ *Optional values:*
+ 1) population: required for demultiplexing, the population to use in the output file names
+ 2) align: true|false, whether the file should be output with .F|R.fq.gz, or R1|R2.fq.gz (default false, which outputs R1|R2)
+ 3) append: if the output files already exist, should we append to it (default is false, we overwrite instead)
+ 4) fuzzyMatch: should the program attempt to fuzzy match barcodes (default true)
+ 5) debugOut: should the program generate a debug output file with all the reads that failed to be parsed
  
  An example can be found in default.config
 
@@ -28,12 +28,12 @@ In all cases, an initial verification step is performed, using a prefix tree to 
 
 If only forward- and reverse- read FASTQ files, plus barcode and configuration files, are passed, mismatches are deleted from the output FASTQ files, which is written to disc as an interleaved FASTQ.gz file.
 
-If the "fuzzy" argument is enabled (it is by default), fuzzy-matching is performed in cases of mismatches, and if a unique barcode can be recovered by changing no more than one low-quality, it is written to the output file as well (the specific threshold is defined in the .config file, and is set 'F' by default).  This option can also be run in "debug mode" by calling "fuzzy debug": all skipped reads will then be writted to debugOut.txt, and some summary statistics will also be output describing what was skipped.
+If the "fuzzy" argument is enabled (as it is by default), fuzzy-matching is performed in cases of mismatches, and if a unique barcode can be recovered by changing no more than one low-quality, it is written to the output file as well (the specific threshold is defined in the .config file).  This option can also be run in "debug mode" by calling: all skipped reads will then be writted to debugOut.txt, and some summary statistics will also be output describing what was skipped.
 
 Example usage:
 
 ```bash
-export config=/PATH/TO/CONFIG/DOT/FILE
+export config=/PATH/TO/CONFIG//FILE
 
 java -cp gbsTools.jar CopyBarcodes $config
 ```
