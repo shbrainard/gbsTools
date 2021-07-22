@@ -21,9 +21,9 @@ import java.util.Set;
  * append - if the output files already exist, should we append to it (default is false, we overwrite instead)
  * fuzzyMatch - should the program attempt to fuzzy match barcodes (default true)
  * debugOut - should the program generate a debug output file with all the reads that failed to be parsed
+ * percentToRetain - should the program downsample the input to simulate a cheaper data-gathering run
  */
 public class Config {
-	
 	private final Set<String> overhangs;
 	private final char minQuality;
 	private final boolean align;
@@ -34,6 +34,11 @@ public class Config {
 	private final String sourceFileForward;
 	private final String sourceFileReverse;
 	private final String population;
+	
+	// Used to simulate the results of a run where the company that creates the fastq files produced fewer reads (more reads = more money)
+	// Typically used to see if a cheaper request to the magic reading company would produce the same quality final data in terms of finding
+	// interesting points of comparison on the chromosomes
+	private final int percentToRetain; 
 	
 	public static Config loadFromFile(String pathToFile) throws IOException {
 		Properties properties = new Properties();
@@ -48,14 +53,15 @@ public class Config {
 				(String)properties.getOrDefault("sourceFileForward", ""),
 				(String)properties.getOrDefault("sourceFileReverse", ""),
 				(String)properties.getOrDefault("population", ""),
-				((String)properties.getOrDefault("overhang", "")).split(","));
+				((String)properties.getOrDefault("overhang", "")).split(","),
+				Integer.parseInt((String)properties.getOrDefault("percentToRetain", "100")));
 	}
 	
 
 
 	public Config(char minQuality, boolean align, boolean append, boolean fuzzyMatch, boolean debugOut, String barcodes,
 			String sourceFileForward, String sourceFileReverse, String population,
-			String[] overhangs) {
+			String[] overhangs, int percentToRetain) {
 		this.overhangs = new HashSet<>();
 		for (String overhang : overhangs) {
 			this.overhangs.add(overhang);
@@ -69,6 +75,7 @@ public class Config {
 		this.sourceFileForward = sourceFileForward;
 		this.sourceFileReverse = sourceFileReverse;
 		this.population = population;
+		this.percentToRetain = percentToRetain;
 	}
 
 	public Set<String> getOverhangs() {
@@ -110,12 +117,16 @@ public class Config {
 	public String getPopulation() {
 		return population;
 	}
+	
+	public int getPercentToRetain() {
+		return percentToRetain;
+	}
 
 	@Override
 	public String toString() {
 		return "Config [overhangs=" + overhangs + ", minQuality=" + minQuality + ", align=" + align + ", append="
 				+ append + ", fuzzyMatch=" + fuzzyMatch + ", debugOut=" + debugOut + ", barcodes=" + barcodes
 				+ ", sourceFileForward=" + sourceFileForward + ", sourceFileReverse=" + sourceFileReverse
-				+ ", population=" + population + "]";
+				+ ", population=" + population + ", percentToRetain=" + percentToRetain + "]";
 	}
 }

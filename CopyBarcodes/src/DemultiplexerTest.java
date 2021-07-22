@@ -28,7 +28,23 @@ public class DemultiplexerTest {
 		checkOutput(1, "bar", ".R.fq.gz");
 	}
 	
-	private void createTestConfig(boolean align) throws Exception {
+	@Test
+	public void downsampleTest() throws Exception {
+		setUpTestFiles();
+		clearOldFiles();
+		
+		createTestConfig(false, "percentToRetain=100");
+		Demultiplexer.main(new String[] {"test.config"});
+		checkOutput(2, "foo", ".R1.fq.gz");
+		checkOutput(1, "bar", ".R2.fq.gz");
+		
+		createTestConfig(false, "percentToRetain=0");
+		Demultiplexer.main(new String[] {"test.config"});
+		checkOutput(0, "foo", ".R1.fq.gz");
+		checkOutput(0, "bar", ".R2.fq.gz");
+	}
+	
+	private void createTestConfig(boolean align, String...extraConfig) throws Exception {
 		try (BufferedWriter out = new BufferedWriter(new FileWriter("test.config"))) {
 			out.write("minQuality=I");
 			out.newLine();
@@ -44,6 +60,10 @@ public class DemultiplexerTest {
 			out.newLine();
 			out.write("population=pop");
 			out.newLine();
+			for (String extraConfigLine : extraConfig) {
+				out.write(extraConfigLine);
+				out.newLine();
+			}
 		}
 	}
 

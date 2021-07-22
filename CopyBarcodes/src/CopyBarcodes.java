@@ -10,6 +10,7 @@ import java.io.OutputStreamWriter;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.CountDownLatch;
@@ -24,6 +25,7 @@ public class CopyBarcodes {
 
 	private static final int MIN_BARCODE_LEN = 4;
 	static final int MAX_LINE_LEN = 400;
+	private static final Random rand = new Random();
 	
 	public static void main(String[] args) throws Exception {
 		if (args.length != 1) {
@@ -80,7 +82,7 @@ public class CopyBarcodes {
 			CountDownLatch persistFinished = new CountDownLatch(1);
 			ExecutorService exec = Executors.newFixedThreadPool(2);
 			Future<?> load = exec.submit(() -> {
-				doLoad(fuzzyMatch, debug, barcodes, stats, forward, reverse, availableReadPool, loadedReads);
+				doLoad(fuzzyMatch, debug, config.getPercentToRetain(), barcodes, stats, forward, reverse, availableReadPool, loadedReads);
 			});
 			Future<?> persist = exec.submit(() -> {
 				try {
@@ -140,37 +142,46 @@ public class CopyBarcodes {
 		}
 	}
 
-	public static void doLoad(boolean fuzzyMatch, boolean debug, PrefixTree barcodes, OutputStats stats,
+	public static void doLoad(boolean fuzzyMatch, boolean debug, int percentToKeep, PrefixTree barcodes, OutputStats stats,
 			ReusingBufferedReader forward, ReusingBufferedReader reverse, ArrayBlockingQueue<Read> availableReadPool,
 			ArrayBlockingQueue<Read> loadedReads) {
 		try {
 			String forwardLine = "";
 			while ((forwardLine = forward.readLine()) != null) {
 				Read read = availableReadPool.take();
+
 				if (loadRead(forward, reverse, forwardLine, read)) {
-					read.barcodeLen = barcodes.findBarcodeLen(read.forwardLineSet[1]);
-					if (read.barcodeLen >= MIN_BARCODE_LEN) {
-						stats.nWritten.getAndIncrement();
-					} else if (fuzzyMatch) {
-						String fuzzedMatch = barcodes.fuzzyMatch(read.forwardLineSet[1],
-								read.forwardLineSet[3], debug ? stats : null);
-						if (fuzzedMatch.length() >= MIN_BARCODE_LEN) {
-							stats.nFuzzed.getAndIncrement();
-							read.fuzzedMatch = fuzzedMatch;
+					if (percentToKeep < 100 && rand.nextInt(100) > percentToKeep) {
+						// pretend we didn't see this line - this is different than marking it as invalid, because those get written
+						// to debugging output
+						stats.nRedacted.getAndIncrement();
+						availableReadPool.put(read);
+					} else {
+						read.barcodeLen = barcodes.findBarcodeLen(read.forwardLineSet[1]);
+						if (read.barcodeLen >= MIN_BARCODE_LEN) {
+							stats.nWritten.getAndIncrement();
+						} else if (fuzzyMatch) {
+							String fuzzedMatch = barcodes.fuzzyMatch(read.forwardLineSet[1],
+									read.forwardLineSet[3], debug ? stats : null);
+							if (fuzzedMatch.length() >= MIN_BARCODE_LEN) {
+								stats.nFuzzed.getAndIncrement();
+								read.fuzzedMatch = fuzzedMatch;
+							} else {
+								read.fuzzedMatch = null; // clear from possible previous run
+								stats.nSkipped.getAndIncrement();
+							}
 						} else {
-							read.fuzzedMatch = null; // clear from possible previous run
 							stats.nSkipped.getAndIncrement();
 						}
-					} else {
-						stats.nSkipped.getAndIncrement();
+						loadedReads.put(read);
 					}
 				} else {
 					read.barcodeLen = 0;
 					read.fuzzedMatch = null;
 					stats.nSkipped.getAndIncrement();
 					stats.nSkippedHeader.getAndIncrement();
+					loadedReads.put(read);
 				}
-				loadedReads.put(read);
 			}
 		} catch (InterruptedException | IOException e) {
 			e.printStackTrace();
