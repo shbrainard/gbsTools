@@ -83,7 +83,7 @@ public class Demultiplexer {
 			CountDownLatch persistFinished = new CountDownLatch(NUM_PERSIST_THREADS);
 			ExecutorService exec = Executors.newFixedThreadPool(NUM_PERSIST_THREADS + 1);
 			Future<?> load = exec.submit(() -> {
-				CopyBarcodes.doLoad(config.isFuzzyMatch(), config.isDebugOut(), barcodes, stats, forward, reverse, availableReadPool, loadedReads);
+				CopyBarcodes.doLoad(config.isFuzzyMatch(), config.isDebugOut(), config.getPercentToRetain(), barcodes, stats, forward, reverse, availableReadPool, loadedReads);
 			});
 			List<Future<?>> persists = new ArrayList<>();
 			for (int i = 0; i < NUM_PERSIST_THREADS; i++) {
@@ -125,7 +125,7 @@ public class Demultiplexer {
 		}
 		System.out.println("Ran with config: " + config);
 		System.out.println("Finished, wrote " + stats.nWritten.get() + ", skipped " 
-				+ stats.nSkipped.get() + ", fuzzed " + stats.nFuzzed.get() + " in " + timeStr);
+				+ stats.nSkipped.get() +  ", redacted " + stats.nRedacted.get() + ", fuzzed " + stats.nFuzzed.get() + " in " + timeStr);
 		if (config.isDebugOut()) {
 			System.out.println("Skipped " + stats.nSkippedDuplicate.get() + " due to non-unique fixes, " 
 					+ stats.nSkippedQuality.get() + " due to quality scores, and " 
