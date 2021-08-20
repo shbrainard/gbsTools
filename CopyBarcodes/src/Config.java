@@ -40,6 +40,8 @@ public class Config {
 	// interesting points of comparison on the chromosomes
 	private final int percentToRetain; 
 	
+	private final boolean printProgress;
+	
 	public static Config loadFromFile(String pathToFile) throws IOException {
 		Properties properties = new Properties();
 		properties.load(new FileInputStream(pathToFile));
@@ -54,14 +56,15 @@ public class Config {
 				(String)properties.getOrDefault("sourceFileReverse", ""),
 				(String)properties.getOrDefault("population", ""),
 				((String)properties.getOrDefault("overhang", "")).split(","),
-				Integer.parseInt((String)properties.getOrDefault("percentToRetain", "100")));
+				Integer.parseInt((String)properties.getOrDefault("percentToRetain", "100")),
+				Boolean.parseBoolean((String)properties.getOrDefault("printProgress", "false")));
 	}
 	
 
 
 	public Config(char minQuality, boolean align, boolean append, boolean fuzzyMatch, boolean debugOut, String barcodes,
 			String sourceFileForward, String sourceFileReverse, String population,
-			String[] overhangs, int percentToRetain) {
+			String[] overhangs, int percentToRetain, boolean printProgress) {
 		this.overhangs = new HashSet<>();
 		for (String overhang : overhangs) {
 			this.overhangs.add(overhang);
@@ -76,6 +79,7 @@ public class Config {
 		this.sourceFileReverse = sourceFileReverse;
 		this.population = population;
 		this.percentToRetain = percentToRetain;
+		this.printProgress = printProgress;
 	}
 
 	public Set<String> getOverhangs() {
@@ -121,12 +125,16 @@ public class Config {
 	public int getPercentToRetain() {
 		return percentToRetain;
 	}
+	
+	public boolean getPrintProgress() {
+		return printProgress;
+	}
 
 	@Override
 	public String toString() {
 		return "Config [overhangs=" + overhangs + ", minQuality=" + minQuality + ", align=" + align + ", append="
 				+ append + ", fuzzyMatch=" + fuzzyMatch + ", debugOut=" + debugOut + ", barcodes=" + barcodes
 				+ ", sourceFileForward=" + sourceFileForward + ", sourceFileReverse=" + sourceFileReverse
-				+ ", population=" + population + ", percentToRetain=" + percentToRetain + "]";
+				+ ", population=" + population + ", percentToRetain=" + percentToRetain + ", printProgress=" + printProgress + "]";
 	}
 }

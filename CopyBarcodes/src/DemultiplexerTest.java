@@ -44,6 +44,17 @@ public class DemultiplexerTest {
 		checkOutput(0, "bar", ".R2.fq.gz");
 	}
 	
+	@Test
+	public void progressTest() throws Exception {
+		setUpTestFiles();
+		clearOldFiles();
+		
+		createTestConfig(false, "printProgress=true", "debugOut=true");
+		Demultiplexer.main(new String[] {"test.config"});
+		checkOutput(2, "foo", ".R1.fq.gz");
+		checkOutput(1, "bar", ".R2.fq.gz");
+	}
+	
 	private void createTestConfig(boolean align, String...extraConfig) throws Exception {
 		try (BufferedWriter out = new BufferedWriter(new FileWriter("test.config"))) {
 			out.write("minQuality=I");
