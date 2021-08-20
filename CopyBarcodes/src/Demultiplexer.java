@@ -1,4 +1,5 @@
 import java.io.BufferedWriter;
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -43,6 +44,19 @@ public class Demultiplexer {
 				new FileInputStream(forwardFile));
 		InflaterInputStream iisRev = new GZIPInputStream(
 				new FileInputStream(reverseFile));
+		ProgressTracker tracker = config.getPrintProgress() ? new ByteBasedProgressTracker(new File(forwardFile).length()) 
+				: new NoOpProgressTracker();
+		ExecutorService progressThread = Executors.newSingleThreadExecutor();
+		Future<?> progressPrinter = progressThread.submit(() -> {
+			while (!Thread.currentThread().isInterrupted()) {
+				tracker.printProgress();
+				try {
+					Thread.sleep(1000);
+				} catch (InterruptedException e) {
+					Thread.currentThread().interrupt();
+				}
+			}
+		});
 		
 		Map<String, String> barcodeToSample = new HashMap<>();
 		Map<String, OutputFile> barcodeToOutputFile = new HashMap<>();
@@ -89,7 +103,7 @@ public class Demultiplexer {
 			for (int i = 0; i < NUM_PERSIST_THREADS; i++) {
 				persists.add(exec.submit(() -> {
 					doWrite(barcodeToOutputFile, availableReadPool, loadedReads, persistFinished,
-							debugOut);
+							debugOut, tracker);
 				}));
 			}
 			
@@ -108,6 +122,9 @@ public class Demultiplexer {
 			persistFinished.await();
 			exec.shutdown();
 		}
+		progressPrinter.cancel(true);
+		progressThread.shutdownNow();
+		
 		barcodeToOutputFile.values().forEach(file -> {
 			try {
 				file.close();
@@ -131,15 +148,21 @@ public class Demultiplexer {
 					+ stats.nSkippedQuality.get() + " due to quality scores, and " 
 					+ stats.nSkippedMultipleBadReads.get() + " due to more than one character being off, and "
 					+ stats.nSkippedHeader.get() + " due to a mismatched header");
+			
+			System.out.println("Totals per barcode:");
+			barcodeToOutputFile.forEach((barcode, file) -> {
+				System.out.println(barcode + ": " + file.getNumWritten());
+			});
 		}
 	}
 
 	private static void doWrite(Map<String, OutputFile> barcodeToOutputFile, ArrayBlockingQueue<Read> availableReadPool,
-			ArrayBlockingQueue<Read> loadedReads, CountDownLatch persistFinished, BufferedWriter debugOut) {
+			ArrayBlockingQueue<Read> loadedReads, CountDownLatch persistFinished, BufferedWriter debugOut, ProgressTracker tracker) {
 		try {
 			while (true) {
 				Read read = loadedReads.take();
 				persistBarcodedRead(barcodeToOutputFile, read, debugOut);
+				tracker.noteProgress();
 				availableReadPool.put(read);
 			}
 		} catch (InterruptedException e) {

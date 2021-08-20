@@ -2,11 +2,13 @@ import java.io.BufferedWriter;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.zip.GZIPOutputStream;
 
 public class OutputFile {
 	private final BufferedWriter forward;
 	private final BufferedWriter reverse;
+	private AtomicInteger nWritten = new AtomicInteger(0);
 
 	public OutputFile(String pop, String sample, boolean alignmentFile, boolean append) throws IOException {
 		String forwardName = pop + "_" + sample + (alignmentFile ? ".F" : ".R1") + ".fq.gz";
@@ -39,5 +41,10 @@ public class OutputFile {
 		reverse.newLine();
 		reverse.write(read.reverseLineSet[3], 0, read.lineLens[7]);
 		reverse.newLine();
+		nWritten.incrementAndGet();
+	}
+
+	public int getNumWritten() {
+		return nWritten.get();
 	}
 }
