@@ -55,7 +55,7 @@ public class DemultiplexerTest {
 		checkOutput(1, "bar", ".R2.fq.gz");
 	}
 	
-	private void createTestConfig(boolean align, String...extraConfig) throws Exception {
+	public static void createTestConfig(boolean align, String...extraConfig) throws Exception {
 		try (BufferedWriter out = new BufferedWriter(new FileWriter("test.config"))) {
 			out.write("minQuality=I");
 			out.newLine();
@@ -78,7 +78,7 @@ public class DemultiplexerTest {
 		}
 	}
 
-	private void clearOldFiles() {
+	public static void clearOldFiles() {
 		// clear old output now that we don't overwrite
 		new File("pop_foo.R1.fq.gz").delete();
 		new File("pop_foo.R2.fq.gz").delete();
@@ -105,7 +105,7 @@ public class DemultiplexerTest {
 	}
 
 	// dummy test has one good, one bad, one fuzzed, one good
-	private void setUpTestFiles() throws Exception {
+	public static void setUpTestFiles() throws Exception {
 		GZIPOutputStream out = new GZIPOutputStream(new FileOutputStream("testForward.gz"));
 		String header = "@A00589:100:HLKHHDMXX:1:1101:1217:1000:1:N:0:GACTAGGAGC+TAGTACAGGC\n";
 

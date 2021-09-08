@@ -10,7 +10,6 @@ import java.io.OutputStreamWriter;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
-import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.CountDownLatch;
@@ -25,7 +24,6 @@ public class CopyBarcodes {
 
 	private static final int MIN_BARCODE_LEN = 4;
 	static final int MAX_LINE_LEN = 400;
-	private static final Random rand = new Random();
 	
 	public static void main(String[] args) throws Exception {
 		if (args.length != 1) {
@@ -82,7 +80,7 @@ public class CopyBarcodes {
 			CountDownLatch persistFinished = new CountDownLatch(1);
 			ExecutorService exec = Executors.newFixedThreadPool(2);
 			Future<?> load = exec.submit(() -> {
-				doLoad(fuzzyMatch, debug, config.getPercentToRetain(), barcodes, stats, forward, reverse, availableReadPool, loadedReads);
+				doLoad(fuzzyMatch, debug, RetainBehavior.KEEP_ALL, barcodes, stats, forward, reverse, availableReadPool, loadedReads);
 			});
 			Future<?> persist = exec.submit(() -> {
 				try {
@@ -142,7 +140,7 @@ public class CopyBarcodes {
 		}
 	}
 
-	public static void doLoad(boolean fuzzyMatch, boolean debug, int percentToKeep, PrefixTree barcodes, OutputStats stats,
+	public static void doLoad(boolean fuzzyMatch, boolean debug, RetainBehavior retainBehavior, PrefixTree barcodes, OutputStats stats,
 			ReusingBufferedReader forward, ReusingBufferedReader reverse, ArrayBlockingQueue<Read> availableReadPool,
 			ArrayBlockingQueue<Read> loadedReads) {
 		try {
@@ -151,7 +149,7 @@ public class CopyBarcodes {
 				Read read = availableReadPool.take();
 
 				if (loadRead(forward, reverse, forwardLine, read)) {
-					if (percentToKeep < 100 && rand.nextInt(100) > percentToKeep) {
+					if (!retainBehavior.keepRead()) {
 						// pretend we didn't see this line - this is different than marking it as invalid, because those get written
 						// to debugging output
 						stats.nRedacted.getAndIncrement();

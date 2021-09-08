@@ -3,7 +3,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 public class ByteBasedProgressTracker implements ProgressTracker {
 
-	private static int GZIP_READ_PER_KB = 45_000;
+	public static int GZIP_READ_PER_KB = 45_000;
 	private static int PERCENT_TO_TWO_DECIMALS = 10_000;
 	
 	private AtomicLong numWritten = new AtomicLong(0);

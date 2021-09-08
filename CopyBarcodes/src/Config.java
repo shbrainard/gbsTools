@@ -39,6 +39,7 @@ public class Config {
 	// Typically used to see if a cheaper request to the magic reading company would produce the same quality final data in terms of finding
 	// interesting points of comparison on the chromosomes
 	private final int percentToRetain; 
+	private final boolean retainByTruncating;
 	
 	private final boolean printProgress;
 	
@@ -57,14 +58,15 @@ public class Config {
 				(String)properties.getOrDefault("population", ""),
 				((String)properties.getOrDefault("overhang", "")).split(","),
 				Integer.parseInt((String)properties.getOrDefault("percentToRetain", "100")),
-				Boolean.parseBoolean((String)properties.getOrDefault("printProgress", "false")));
+				Boolean.parseBoolean((String)properties.getOrDefault("printProgress", "false")),
+				Boolean.parseBoolean((String)properties.getOrDefault("retainByTruncating", "false")));
 	}
 	
 
 
 	public Config(char minQuality, boolean align, boolean append, boolean fuzzyMatch, boolean debugOut, String barcodes,
 			String sourceFileForward, String sourceFileReverse, String population,
-			String[] overhangs, int percentToRetain, boolean printProgress) {
+			String[] overhangs, int percentToRetain, boolean printProgress, boolean retainByTruncating) {
 		this.overhangs = new HashSet<>();
 		for (String overhang : overhangs) {
 			this.overhangs.add(overhang);
@@ -80,6 +82,7 @@ public class Config {
 		this.population = population;
 		this.percentToRetain = percentToRetain;
 		this.printProgress = printProgress;
+		this.retainByTruncating = retainByTruncating;
 	}
 
 	public Set<String> getOverhangs() {
@@ -129,12 +132,17 @@ public class Config {
 	public boolean getPrintProgress() {
 		return printProgress;
 	}
-
+	
+	public boolean retainByTruncating() {
+		return retainByTruncating;
+	}
+	
 	@Override
 	public String toString() {
 		return "Config [overhangs=" + overhangs + ", minQuality=" + minQuality + ", align=" + align + ", append="
 				+ append + ", fuzzyMatch=" + fuzzyMatch + ", debugOut=" + debugOut + ", barcodes=" + barcodes
 				+ ", sourceFileForward=" + sourceFileForward + ", sourceFileReverse=" + sourceFileReverse
-				+ ", population=" + population + ", percentToRetain=" + percentToRetain + ", printProgress=" + printProgress + "]";
+				+ ", population=" + population + ", percentToRetain=" + percentToRetain + ", printProgress=" + printProgress
+				+ "retainByTruncating=" + retainByTruncating + "]";
 	}
 }
