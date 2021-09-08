@@ -33,6 +33,7 @@ public class Config {
 	private final String barcodes;
 	private final String sourceFileForward;
 	private final String sourceFileReverse;
+	private final String sourceFileInterleaved; // either forward/reverse or interleaved must be specified
 	private final String population;
 	
 	// Used to simulate the results of a run where the company that creates the fastq files produced fewer reads (more reads = more money)
@@ -55,6 +56,7 @@ public class Config {
 				(String)properties.getOrDefault("barcodeFile", ""),
 				(String)properties.getOrDefault("sourceFileForward", ""),
 				(String)properties.getOrDefault("sourceFileReverse", ""),
+				(String)properties.getOrDefault("sourceFileInterleaved", ""),
 				(String)properties.getOrDefault("population", ""),
 				((String)properties.getOrDefault("overhang", "")).split(","),
 				Integer.parseInt((String)properties.getOrDefault("percentToRetain", "100")),
@@ -65,7 +67,7 @@ public class Config {
 
 
 	public Config(char minQuality, boolean align, boolean append, boolean fuzzyMatch, boolean debugOut, String barcodes,
-			String sourceFileForward, String sourceFileReverse, String population,
+			String sourceFileForward, String sourceFileReverse, String sourceFileInterleaved, String population,
 			String[] overhangs, int percentToRetain, boolean printProgress, boolean retainByTruncating) {
 		this.overhangs = new HashSet<>();
 		for (String overhang : overhangs) {
@@ -79,6 +81,7 @@ public class Config {
 		this.barcodes = barcodes;
 		this.sourceFileForward = sourceFileForward;
 		this.sourceFileReverse = sourceFileReverse;
+		this.sourceFileInterleaved = sourceFileInterleaved;
 		this.population = population;
 		this.percentToRetain = percentToRetain;
 		this.printProgress = printProgress;
@@ -120,6 +123,10 @@ public class Config {
 	public String getSourceFileReverse() {
 		return sourceFileReverse;
 	}
+	
+	public String getSourceFileInterleaved() {
+		return sourceFileInterleaved;
+	}
 
 	public String getPopulation() {
 		return population;
@@ -142,7 +149,7 @@ public class Config {
 		return "Config [overhangs=" + overhangs + ", minQuality=" + minQuality + ", align=" + align + ", append="
 				+ append + ", fuzzyMatch=" + fuzzyMatch + ", debugOut=" + debugOut + ", barcodes=" + barcodes
 				+ ", sourceFileForward=" + sourceFileForward + ", sourceFileReverse=" + sourceFileReverse
-				+ ", population=" + population + ", percentToRetain=" + percentToRetain + ", printProgress=" + printProgress
-				+ "retainByTruncating=" + retainByTruncating + "]";
+				+ ", sourceFileInterleaved=" + sourceFileInterleaved + ", population=" + population + ", percentToRetain=" + percentToRetain + ", printProgress=" + printProgress
+				+ ", retainByTruncating=" + retainByTruncating + "]";
 	}
 }
