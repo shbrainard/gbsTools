@@ -46,6 +46,9 @@ public class Demultiplexer {
 				new FileInputStream(reverseFile));
 		ProgressTracker tracker = config.getPrintProgress() ? new ByteBasedProgressTracker(new File(forwardFile).length()) 
 				: new NoOpProgressTracker();
+		RetainBehavior retainBehavior = RetainBehaviors.getRetainBehavior(config.getPercentToRetain(), 
+				new File(forwardFile).length() / 1024 * ByteBasedProgressTracker.GZIP_READ_PER_KB, config.retainByTruncating());
+		
 		ExecutorService progressThread = Executors.newSingleThreadExecutor();
 		Future<?> progressPrinter = progressThread.submit(() -> {
 			while (!Thread.currentThread().isInterrupted()) {
@@ -97,7 +100,7 @@ public class Demultiplexer {
 			CountDownLatch persistFinished = new CountDownLatch(NUM_PERSIST_THREADS);
 			ExecutorService exec = Executors.newFixedThreadPool(NUM_PERSIST_THREADS + 1);
 			Future<?> load = exec.submit(() -> {
-				CopyBarcodes.doLoad(config.isFuzzyMatch(), config.isDebugOut(), config.getPercentToRetain(), barcodes, stats, forward, reverse, availableReadPool, loadedReads);
+				CopyBarcodes.doLoad(config.isFuzzyMatch(), config.isDebugOut(), retainBehavior, barcodes, stats, forward, reverse, availableReadPool, loadedReads);
 			});
 			List<Future<?>> persists = new ArrayList<>();
 			for (int i = 0; i < NUM_PERSIST_THREADS; i++) {
@@ -151,7 +154,7 @@ public class Demultiplexer {
 			
 			System.out.println("Totals per barcode:");
 			barcodeToOutputFile.forEach((barcode, file) -> {
-				System.out.println(barcode + ": " + file.getNumWritten());
+				System.out.println(barcodeToSample.get(barcode) + ": " + file.getNumWritten());
 			});
 		}
 	}
