@@ -20,25 +20,28 @@ public class Downsampler {
 			String sourceFileInterleaved = config.getSourceFileInterleaved();
 			RetainBehavior retainBehavior = RetainBehaviors.getRetainBehavior(config.getPercentToRetain(), 
 					new File(sourceFileInterleaved).length() / 1024 * ByteBasedProgressTracker.GZIP_READ_PER_KB / 2, config.retainByTruncating());
-			truncateFile(sourceFileInterleaved, 8, retainBehavior);
-			System.out.println("Output stored in truncated_" + sourceFileInterleaved);
+			String result = truncateFile(sourceFileInterleaved, 8, retainBehavior);
+			System.out.println("Output stored in " + result);
 		} else {
 			String forwardFile = config.getSourceFileForward();
 			String reverseFile = config.getSourceFileReverse();
 			
 			RetainBehavior retainBehavior = RetainBehaviors.getRetainBehavior(config.getPercentToRetain(), 
 					new File(forwardFile).length() / 1024 * ByteBasedProgressTracker.GZIP_READ_PER_KB, config.retainByTruncating());
-			truncateFile(forwardFile, 4, retainBehavior);
-			truncateFile(reverseFile, 4, retainBehavior);
-			System.out.println("Output stored in truncated_" + forwardFile + " and truncated_" + reverseFile);
+			String result1 = truncateFile(forwardFile, 4, retainBehavior);
+			String result2 = truncateFile(reverseFile, 4, retainBehavior);
+			System.out.println("Output stored in " + result1 + " and " + result2);
 		}
 	}
 	
-	private static void truncateFile(String fileName, int rowsPerRead, RetainBehavior retainBehavior) throws Exception {
+	private static String truncateFile(String fileName, int rowsPerRead, RetainBehavior retainBehavior) throws Exception {
+		File inputFile = new File(fileName);
+		File outputFile = new File(inputFile.getParent(), "truncated_" + inputFile.getName());
 		
 		try (ReusingBufferedReader in = new ReusingBufferedReader(new InputStreamReader(new GZIPInputStream(
-				new FileInputStream(fileName))));
-				BufferedWriter out = new BufferedWriter(new OutputStreamWriter(new GZIPOutputStream(new FileOutputStream("truncated_" + fileName))))) {
+				new FileInputStream(inputFile))));
+				BufferedWriter out = new BufferedWriter(new OutputStreamWriter(new GZIPOutputStream(
+						new FileOutputStream(outputFile))))) {
 			String forwardLine = "";
 			while ((forwardLine = in.readLine()) != null) {
 				if (!retainBehavior.keepRead()) {
@@ -55,5 +58,6 @@ public class Downsampler {
 				}
 			}
 		}
+		return outputFile.getCanonicalPath();
 	}
 }

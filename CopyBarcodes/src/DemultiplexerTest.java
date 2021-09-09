@@ -61,7 +61,8 @@ public class DemultiplexerTest {
 			out.newLine();
 			out.write("overhang=CAGC,CTGC");
 			out.newLine();
-			out.write("sourceFileForward=testForward.gz");
+			String file = new File("testForward.gz").getCanonicalPath().replaceAll("\\\\", "\\\\\\\\");
+			out.write("sourceFileForward=" + file);
 			out.newLine();
 			out.write("barcodeFile=testBarcodes.txt");
 			out.newLine();
