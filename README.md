@@ -6,7 +6,7 @@
  
  *Required values:*
  1) minQuality: the minimum quality score that will prevent fuzzy matching bases that were called >= this quality
- 2) barcodeFile: path to the file containing barcode information (tab separated, barcode<tab>sample_id)
+ 2) barcodeFile: path to the file containing barcode information (tab separated, ```barcode<tab>sample_id```)
  3) sourceFileForward: the path to the file containing the forward reads (fq.gz)
  4) sourceFileReverse: the path to the file containing the reverse reads (fq.gz)
  5) overhang: a comma-separated list of overhangs for this data (can accept multiple overhangs for double digests)
