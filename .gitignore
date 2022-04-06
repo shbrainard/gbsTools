@@ -3,3 +3,4 @@ bin/
 *.project
 *.gz
 *.txt
+.DS_Store

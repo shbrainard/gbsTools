@@ -54,3 +54,8 @@ java -cp gbsTools.jar Demultiplexer $config
 ```
 Benchmarking was performed on a CentOS Linux distribution, running on a server with 6 Intel Xeon 2.67 GHz CPUs and 40 GB of RAM.  The same FASTQ files described above were de-multiplexed into their 192 component FASTQ files (each ~200 MB when gzipped) in 160 minutes.  For comparison, Stacks' `process_radtags` completed in just over 11 hours, while GBSX's `--Demultiplexer` option took 5 hours to finish, with `-t 6` (15 hours with `-t 1`).
 
+
+
+## Downsampling
+
+This class performs downsamples FQ files, and can either be based `sourceFileForward` and `sourceFileReverse`, or it can take `sourceFileInterleaved` instead to use the output of CopyBarcodes. `percentToRetain` determines how much to downsample by and `retainByTruncating` turns on or off random elimination.  Progress tracking is attempted, but may not be very accurate.
