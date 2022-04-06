@@ -58,4 +58,9 @@ Benchmarking was performed on a CentOS Linux distribution, running on a server w
 
 ## Downsampling
 
-This class performs downsamples FQ files, and can either be based `sourceFileForward` and `sourceFileReverse`, or it can take `sourceFileInterleaved` instead to use the output of CopyBarcodes. `percentToRetain` determines how much to downsample by and `retainByTruncating` turns on or off random elimination.  Progress tracking is attempted, but may not be very accurate.
+This class downsamples FQ files.  It can either be passed a path to `sourceFileForward` and `sourceFileReverse`, in which case it will downsample both equally, or it can take `sourceFileInterleaved` instead, to use the output of `CopyBarcodes`. 
+
+`percentToRetain` determines how much to downsample by
+`retainByTruncating` turns on or off random elimination. 
+
+Progress tracking is attempted, but may not be very accurate. 
