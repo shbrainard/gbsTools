@@ -27,6 +27,14 @@ public class CopyBarcodesTest {
 		checkOutput(3);
 	}
 	
+	@Test
+	public void testCommandLine() throws Exception {
+		setUpTestFiles();
+		CopyBarcodes.main(new String[] {"minQuality=I", "overhang=CAGC,CTGC", "sourceFileForward=testForward.gz", "barcodeFile=testBarcodes.txt",
+				"sourceFileReverse=testBackwards.gz", "fuzzyMatch=false"});
+		checkOutput(2);
+	}
+	
 	private void createTestConfig(boolean fuzzy, boolean debug) throws Exception {
 		try (BufferedWriter out = new BufferedWriter(new FileWriter("test.config"))) {
 			out.write("minQuality=I");

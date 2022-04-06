@@ -1,6 +1,11 @@
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 
@@ -43,6 +48,46 @@ public class Config {
 	private final boolean retainByTruncating;
 	
 	private final boolean printProgress;
+	
+	public static Config loadOptions(String[] args) throws IOException {
+		Map<String, String> properties = new HashMap<>();
+		
+		if (args.length < 2) {
+			loadFromFile(args[0], properties);
+		} else {
+			loadFromCommandLine(args, properties);
+		}
+	
+		return new Config(properties.getOrDefault("minQuality", "0").charAt(0), 
+				Boolean.parseBoolean(properties.getOrDefault("align", "false")),
+				Boolean.parseBoolean(properties.getOrDefault("append", "false")),
+				Boolean.parseBoolean(properties.getOrDefault("fuzzyMatch", "true")),
+				Boolean.parseBoolean(properties.getOrDefault("debugOut", "false")),
+				properties.getOrDefault("barcodeFile", ""),
+				properties.getOrDefault("sourceFileForward", ""),
+				properties.getOrDefault("sourceFileReverse", ""),
+				properties.getOrDefault("sourceFileInterleaved", ""),
+				properties.getOrDefault("population", ""),
+				properties.getOrDefault("overhang", "").split(","),
+				Integer.parseInt(properties.getOrDefault("percentToRetain", "100")),
+				Boolean.parseBoolean(properties.getOrDefault("printProgress", "false")),
+				Boolean.parseBoolean(properties.getOrDefault("retainByTruncating", "false")));
+	}
+
+	private static void loadFromFile(String file, Map<String, String> props) throws IOException {
+		List<String> allPropLines = Files.readAllLines(Paths.get(file));
+		for (String arg : allPropLines) {
+			String[] parsed = arg.split("=");
+			props.put(parsed[0], parsed[1]);
+		}		
+	}
+
+	private static void loadFromCommandLine(String[] args, Map<String, String> props) {
+		for (String arg : args) {
+			String[] parsed = arg.split("=");
+			props.put(parsed[0], parsed[1]);
+		}		
+	}
 	
 	public static Config loadFromFile(String pathToFile) throws IOException {
 		Properties properties = new Properties();

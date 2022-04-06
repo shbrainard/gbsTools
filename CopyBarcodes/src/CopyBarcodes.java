@@ -26,13 +26,13 @@ public class CopyBarcodes {
 	static final int MAX_LINE_LEN = 400;
 	
 	public static void main(String[] args) throws Exception {
-		if (args.length != 1) {
-			System.out.println("Usage: <path to config file>."
+		if (args.length < 1) {
+			System.out.println("Usage: <path to config file> OR specify all flags on command line."
 					+ "output is stored in <forwardFile>.interleaved.barcoded.gz");
 			System.exit(-1);
 		}
 		
-		Config config = Config.loadFromFile(args[0]);
+		Config config = Config.loadOptions(args);
 		
 		String forwardFile = config.getSourceFileForward();
 		String reverseFile = config.getSourceFileReverse();

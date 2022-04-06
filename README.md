@@ -19,6 +19,8 @@
  5) debugOut: should the program generate a debug output file with all the reads that failed to be parsed
  
  An example can be found in default.config
+ 
+ Note: these options can be specified on the command line instead, ex CopyBarcodes minQuality=<quality> barcodeFile=<file> etc. You cannot mix and match (specifying some in a config file and others on the command line), however.
 
 ## CopyBarcodes
 
