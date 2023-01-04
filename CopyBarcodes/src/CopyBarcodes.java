@@ -1,14 +1,15 @@
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
-import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -16,9 +17,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
-import java.util.zip.InflaterInputStream;
 
 public class CopyBarcodes {
 
@@ -34,19 +33,17 @@ public class CopyBarcodes {
 		
 		Config config = Config.loadOptions(args);
 		
-		String forwardFile = config.getSourceFileForward();
-		String reverseFile = config.getSourceFileReverse();
+		List<String> forwardFile = config.getSourceFileForward();
+		List<String> reverseFile = config.getSourceFileReverse();
 		String barcodeFile = config.getBarcodes();
 		boolean debug = config.isDebugOut();
 		boolean fuzzyMatch = config.isFuzzyMatch();
-		String outputFile = forwardFile.substring(0, forwardFile.lastIndexOf(".gz")) + ".interleaved.fq.gz";
+		String outputFile = forwardFile.get(0).substring(0, forwardFile.get(0).lastIndexOf(".gz")) + ".interleaved.fq.gz";
 		
 		// load barcodes
 		PrefixTree barcodes = new PrefixTree(config);
-		InflaterInputStream iisFwd = new GZIPInputStream(
-				new FileInputStream(forwardFile));
-		InflaterInputStream iisRev = new GZIPInputStream(
-				new FileInputStream(reverseFile));
+		InputStream iisFwd = MultiFileInputStream.getStream(forwardFile); 
+		InputStream iisRev = MultiFileInputStream.getStream(reverseFile);
 		
 		Set<String> barcodeSet = loadBarcodeFile(barcodeFile, barcodes, new HashMap<>());
 		int minEditDistance = getMinEditDistance(barcodeSet);

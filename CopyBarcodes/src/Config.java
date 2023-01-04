@@ -2,6 +2,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -16,8 +17,8 @@ import java.util.Set;
  * Required values:
  * minQuality - the minimum quality score to prevent fuzzy matching values read with this quality
  * barcodeFile - the path to the file containing barcode information
- * sourceFileForward - the path to the file containing the forward reads
- * sourceFileReverse - the path to the file containing the reverse reads
+ * sourceFileForward - the path to the file containing the forward reads (or an ordered list of paths that should be treated as concatenated input)
+ * sourceFileReverse - the path to the file containing the reverse reads  (or an ordered list of paths that should be treated as concatenated input)
  * overhang - a comma-separated list of overhangs for this data
  * 
  * Optional values:
@@ -36,9 +37,9 @@ public class Config {
 	private final boolean fuzzyMatch;
 	private final boolean debugOut;
 	private final String barcodes;
-	private final String sourceFileForward;
-	private final String sourceFileReverse;
-	private final String sourceFileInterleaved; // either forward/reverse or interleaved must be specified
+	private final List<String> sourceFileForward;
+	private final List<String> sourceFileReverse;
+	private final List<String> sourceFileInterleaved; // either forward/reverse or interleaved must be specified
 	private final String population;
 	
 	// Used to simulate the results of a run where the company that creates the fastq files produced fewer reads (more reads = more money)
@@ -64,9 +65,9 @@ public class Config {
 				Boolean.parseBoolean(properties.getOrDefault("fuzzyMatch", "true")),
 				Boolean.parseBoolean(properties.getOrDefault("debugOut", "false")),
 				properties.getOrDefault("barcodeFile", ""),
-				properties.getOrDefault("sourceFileForward", ""),
-				properties.getOrDefault("sourceFileReverse", ""),
-				properties.getOrDefault("sourceFileInterleaved", ""),
+				getList(properties.getOrDefault("sourceFileForward", "")),
+				getList(properties.getOrDefault("sourceFileReverse", "")),
+				getList(properties.getOrDefault("sourceFileInterleaved", "")),
 				properties.getOrDefault("population", ""),
 				properties.getOrDefault("overhang", "").split(","),
 				Integer.parseInt(properties.getOrDefault("percentToRetain", "100")),
@@ -99,9 +100,9 @@ public class Config {
 				Boolean.parseBoolean((String)properties.getOrDefault("fuzzyMatch", "true")),
 				Boolean.parseBoolean((String)properties.getOrDefault("debugOut", "false")),
 				(String)properties.getOrDefault("barcodeFile", ""),
-				(String)properties.getOrDefault("sourceFileForward", ""),
-				(String)properties.getOrDefault("sourceFileReverse", ""),
-				(String)properties.getOrDefault("sourceFileInterleaved", ""),
+				getList((String)properties.getOrDefault("sourceFileForward", "")),
+				getList((String)properties.getOrDefault("sourceFileReverse", "")),
+				getList((String)properties.getOrDefault("sourceFileInterleaved", "")),
 				(String)properties.getOrDefault("population", ""),
 				((String)properties.getOrDefault("overhang", "")).split(","),
 				Integer.parseInt((String)properties.getOrDefault("percentToRetain", "100")),
@@ -109,10 +110,17 @@ public class Config {
 				Boolean.parseBoolean((String)properties.getOrDefault("retainByTruncating", "false")));
 	}
 	
-
-
+	private static List<String> getList(String list) {
+		String[] split = list.split(",", 0);
+		List<String> result = new ArrayList<>(split.length);
+		for (String str : split) {
+			result.add(str);
+		}
+		return result;
+	}
+	
 	public Config(char minQuality, boolean align, boolean append, boolean fuzzyMatch, boolean debugOut, String barcodes,
-			String sourceFileForward, String sourceFileReverse, String sourceFileInterleaved, String population,
+			List<String> sourceFileForward, List<String> sourceFileReverse, List<String> sourceFileInterleaved, String population,
 			String[] overhangs, int percentToRetain, boolean printProgress, boolean retainByTruncating) {
 		this.overhangs = new HashSet<>();
 		for (String overhang : overhangs) {
@@ -161,15 +169,15 @@ public class Config {
 		return barcodes;
 	}
 
-	public String getSourceFileForward() {
+	public List<String> getSourceFileForward() {
 		return sourceFileForward;
 	}
 
-	public String getSourceFileReverse() {
+	public List<String> getSourceFileReverse() {
 		return sourceFileReverse;
 	}
 	
-	public String getSourceFileInterleaved() {
+	public List<String> getSourceFileInterleaved() {
 		return sourceFileInterleaved;
 	}
 

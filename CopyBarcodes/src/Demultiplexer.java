@@ -1,8 +1,8 @@
 import java.io.BufferedWriter;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.util.ArrayList;
@@ -15,8 +15,6 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.zip.GZIPInputStream;
-import java.util.zip.InflaterInputStream;
 
 public class Demultiplexer {
 	
@@ -33,21 +31,21 @@ public class Demultiplexer {
 		Config config = Config.loadFromFile(args[0]);
 		
 		String popName = config.getPopulation();
-		String forwardFile = config.getSourceFileForward();
-		String reverseFile = config.getSourceFileReverse();
+		List<String> forwardFile = config.getSourceFileForward();
+		List<String> reverseFile = config.getSourceFileReverse();
 		String barcodeFile = config.getBarcodes();
 		boolean alignmentFile = config.isAlign();
 
 		// load barcodes
 		PrefixTree barcodes = new PrefixTree(config);
-		InflaterInputStream iisFwd = new GZIPInputStream(
-				new FileInputStream(forwardFile));
-		InflaterInputStream iisRev = new GZIPInputStream(
-				new FileInputStream(reverseFile));
-		ProgressTracker tracker = config.getPrintProgress() ? new ByteBasedProgressTracker(new File(forwardFile).length()) 
+		InputStream iisFwd = MultiFileInputStream.getStream(forwardFile); 
+		InputStream iisRev = MultiFileInputStream.getStream(reverseFile);
+		
+		long approxLen = forwardFile.size() * new File(forwardFile.get(0)).length();
+		ProgressTracker tracker = config.getPrintProgress() ? new ByteBasedProgressTracker(approxLen) 
 				: new NoOpProgressTracker();
 		RetainBehavior retainBehavior = RetainBehaviors.getRetainBehavior(config.getPercentToRetain(), 
-				new File(forwardFile).length() / 1024 * ByteBasedProgressTracker.GZIP_READ_PER_KB, config.retainByTruncating());
+				approxLen / 1024 * ByteBasedProgressTracker.GZIP_READ_PER_KB, config.retainByTruncating());
 		
 		ExecutorService progressThread = Executors.newSingleThreadExecutor();
 		Future<?> progressPrinter = progressThread.submit(() -> {

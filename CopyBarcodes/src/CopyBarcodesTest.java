@@ -4,6 +4,8 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.InputStreamReader;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.zip.GZIPInputStream;
@@ -33,6 +35,33 @@ public class CopyBarcodesTest {
 		CopyBarcodes.main(new String[] {"minQuality=I", "overhang=CAGC,CTGC", "sourceFileForward=testForward.gz", "barcodeFile=testBarcodes.txt",
 				"sourceFileReverse=testBackwards.gz", "fuzzyMatch=false"});
 		checkOutput(2);
+	}
+	
+	@Test
+	public void testMultiFile() throws Exception {
+		setUpTestFiles();
+		try (FileOutputStream out = new FileOutputStream("tf2.gz")) {
+			Files.copy(Paths.get("testForward.gz"), out);
+		}
+		try (FileOutputStream out = new FileOutputStream("tr2.gz")) {
+			Files.copy(Paths.get("testBackwards.gz"), out);
+		}
+		try (BufferedWriter out = new BufferedWriter(new FileWriter("test.config"))) {
+			out.write("minQuality=I");
+			out.newLine();
+			out.write("overhang=CAGC,CTGC");
+			out.newLine();
+			out.write("sourceFileForward=testForward.gz,tf2.gz");
+			out.newLine();
+			out.write("barcodeFile=testBarcodes.txt");
+			out.newLine();
+			out.write("sourceFileReverse=testBackwards.gz,tr2.gz");
+			out.newLine();
+			out.write("fuzzyMatch=" + false);
+			out.newLine();
+		}
+		CopyBarcodes.main(new String[] {"test.config"});
+		checkOutput(4);
 	}
 	
 	private void createTestConfig(boolean fuzzy, boolean debug) throws Exception {
