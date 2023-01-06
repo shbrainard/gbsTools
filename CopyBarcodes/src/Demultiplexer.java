@@ -20,7 +20,7 @@ public class Demultiplexer {
 	
 	private static final int MIN_BARCODE_LEN = 4;
 	static final int MAX_LINE_LEN = 400;
-	static final int NUM_PERSIST_THREADS = 5;
+	static final int MAX_NUM_PERSIST_THREADS = 5; // this is sufficient to fully saturate i/o
 
 	public static void main(String[] args) throws Exception {
 		if (args.length != 1) {
@@ -95,13 +95,14 @@ public class Demultiplexer {
 			for (int i = 0; i < bufferSize; i++) {
 				availableReadPool.add(new Read());
 			}
-			CountDownLatch persistFinished = new CountDownLatch(NUM_PERSIST_THREADS);
-			ExecutorService exec = Executors.newFixedThreadPool(NUM_PERSIST_THREADS + 1);
+			int nPersistThreads = Math.min(Runtime.getRuntime().availableProcessors(), MAX_NUM_PERSIST_THREADS);
+			CountDownLatch persistFinished = new CountDownLatch(nPersistThreads);
+			ExecutorService exec = Executors.newFixedThreadPool(nPersistThreads + 1);
 			Future<?> load = exec.submit(() -> {
 				CopyBarcodes.doLoad(config.isFuzzyMatch(), config.isDebugOut(), retainBehavior, barcodes, stats, forward, reverse, availableReadPool, loadedReads);
 			});
 			List<Future<?>> persists = new ArrayList<>();
-			for (int i = 0; i < NUM_PERSIST_THREADS; i++) {
+			for (int i = 0; i < nPersistThreads; i++) {
 				persists.add(exec.submit(() -> {
 					doWrite(barcodeToOutputFile, availableReadPool, loadedReads, persistFinished,
 							debugOut, tracker);
