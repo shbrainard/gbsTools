@@ -76,8 +76,9 @@ public class CopyBarcodes {
 			}
 			CountDownLatch persistFinished = new CountDownLatch(1);
 			ExecutorService exec = Executors.newFixedThreadPool(2);
+			LoadConfig loadConfig = new LoadConfig(fuzzyMatch, debug, false, RetainBehavior.KEEP_ALL);
 			Future<?> load = exec.submit(() -> {
-				doLoad(fuzzyMatch, debug, RetainBehavior.KEEP_ALL, barcodes, stats, forward, reverse, availableReadPool, loadedReads);
+				doLoad(loadConfig, barcodes, stats, forward, reverse, availableReadPool, loadedReads);
 			});
 			Future<?> persist = exec.submit(() -> {
 				try {
@@ -136,8 +137,8 @@ public class CopyBarcodes {
 					+ stats.nSkippedHeader.get() + " due to a mismatched header");
 		}
 	}
-
-	public static void doLoad(boolean fuzzyMatch, boolean debug, RetainBehavior retainBehavior, PrefixTree barcodes, OutputStats stats,
+	
+	public static void doLoad(LoadConfig loadConfig, PrefixTree barcodes, OutputStats stats,
 			ReusingBufferedReader forward, ReusingBufferedReader reverse, ArrayBlockingQueue<Read> availableReadPool,
 			ArrayBlockingQueue<Read> loadedReads) {
 		try {
@@ -145,8 +146,8 @@ public class CopyBarcodes {
 			while ((forwardLine = forward.readLine()) != null) {
 				Read read = availableReadPool.take();
 
-				if (loadRead(forward, reverse, forwardLine, read)) {
-					if (!retainBehavior.keepRead()) {
+				if (loadRead(forward, reverse, forwardLine, read, loadConfig.isReverseMissing())) {
+					if (!loadConfig.getRetainBehavior().keepRead()) {
 						// pretend we didn't see this line - this is different than marking it as invalid, because those get written
 						// to debugging output
 						stats.nRedacted.getAndIncrement();
@@ -155,9 +156,9 @@ public class CopyBarcodes {
 						read.barcodeLen = barcodes.findBarcodeLen(read.forwardLineSet[1]);
 						if (read.barcodeLen >= MIN_BARCODE_LEN) {
 							stats.nWritten.getAndIncrement();
-						} else if (fuzzyMatch) {
+						} else if (loadConfig.isFuzzyMatch()) {
 							String fuzzedMatch = barcodes.fuzzyMatch(read.forwardLineSet[1],
-									read.forwardLineSet[3], debug ? stats : null);
+									read.forwardLineSet[3], loadConfig.isDebug() ? stats : null);
 							if (fuzzedMatch.length() >= MIN_BARCODE_LEN) {
 								stats.nFuzzed.getAndIncrement();
 								read.fuzzedMatch = fuzzedMatch;
@@ -289,23 +290,30 @@ public class CopyBarcodes {
 	}
 
 	private static boolean loadRead(ReusingBufferedReader forward, ReusingBufferedReader reverse, String forwardLine,
-			Read read) throws IOException {
+			Read read, boolean reverseMissing) throws IOException {
 		// read sequence id line, barcode line, delimiter, and quality
 		read.forwardLineSet[0] = forwardLine.toCharArray();
 		read.lineLens[0] = forwardLine.length();
 		read.lineLens[1] = forward.readLine(read.forwardLineSet[1]);
 		read.lineLens[2] = forward.readLine(read.forwardLineSet[2]);
 		read.lineLens[3] = forward.readLine(read.forwardLineSet[3]);
-		read.lineLens[4] = reverse.readLine(read.reverseLineSet[0]);
-		read.lineLens[5] = reverse.readLine(read.reverseLineSet[1]);
-		read.lineLens[6] = reverse.readLine(read.reverseLineSet[2]);
-		read.lineLens[7] = reverse.readLine(read.reverseLineSet[3]);
+		if (!reverseMissing) {
+			read.lineLens[4] = reverse.readLine(read.reverseLineSet[0]);
+			read.lineLens[5] = reverse.readLine(read.reverseLineSet[1]);
+			read.lineLens[6] = reverse.readLine(read.reverseLineSet[2]);
+			read.lineLens[7] = reverse.readLine(read.reverseLineSet[3]);
+		} else {
+			read.lineLens[4] = 0;
+			read.lineLens[5] = 0;
+			read.lineLens[6] = 0;
+			read.lineLens[7] = 0;
+		}
 		
-		return checkHeaders(read);
+		return checkHeaders(read, reverseMissing);
 	}
 
 	// verify the headers match on x & y
-	private static boolean checkHeaders(Read read) {
+	private static boolean checkHeaders(Read read, boolean reverseMissing) {
 		int posFwd = 0;
 		int nSplitsFound = 0;
 		while (posFwd < read.lineLens[0] && nSplitsFound < 5) {
@@ -317,27 +325,32 @@ public class CopyBarcodes {
 		if (nSplitsFound < 5) {
 			return false;
 		}
-		int posRev = 0;
-		nSplitsFound = 0;
-		while (posRev < read.lineLens[4] && nSplitsFound < 5) {
-			if (read.reverseLineSet[0][posRev] == ':') {
-				nSplitsFound++;
+		
+		if (!reverseMissing) {
+			int posRev = 0;
+			nSplitsFound = 0;
+
+			while (posRev < read.lineLens[4] && nSplitsFound < 5) {
+				if (read.reverseLineSet[0][posRev] == ':') {
+					nSplitsFound++;
+				}
+				posRev++;
 			}
-			posRev++;
-		}
-		if (nSplitsFound < 5) {
-			return false;
-		}
-		while (posFwd < read.lineLens[0] && posRev < read.lineLens[4] && nSplitsFound < 7) {
-			if (read.forwardLineSet[0][posFwd] != read.reverseLineSet[0][posRev]) {
+			if (nSplitsFound < 5) {
 				return false;
 			}
-			if (read.reverseLineSet[0][posRev] == ':'
-					|| read.reverseLineSet[0][posRev] == ' ') {
-				nSplitsFound++;
+
+			while (posFwd < read.lineLens[0] && posRev < read.lineLens[4] && nSplitsFound < 7) {
+				if (read.forwardLineSet[0][posFwd] != read.reverseLineSet[0][posRev]) {
+					return false;
+				}
+				if (read.reverseLineSet[0][posRev] == ':'
+						|| read.reverseLineSet[0][posRev] == ' ') {
+					nSplitsFound++;
+				}
+				posFwd++;
+				posRev++;
 			}
-			posFwd++;
-			posRev++;
 		}
 		return true;
 	}

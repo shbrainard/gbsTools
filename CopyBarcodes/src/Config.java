@@ -114,7 +114,9 @@ public class Config {
 		String[] split = list.split(",", 0);
 		List<String> result = new ArrayList<>(split.length);
 		for (String str : split) {
-			result.add(str);
+			if (str.length() > 0) {
+				result.add(str);
+			}
 		}
 		return result;
 	}

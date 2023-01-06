@@ -11,6 +11,42 @@ import java.util.zip.GZIPOutputStream;
 import org.junit.Test;
 
 public class DemultiplexerTest {
+	
+	@Test
+	public void testReverseOptional() throws Exception {
+		setUpTestFiles();
+		clearOldFiles();
+		
+		try (BufferedWriter out = new BufferedWriter(new FileWriter("test.config"))) {
+			out.write("minQuality=I");
+			out.newLine();
+			out.write("overhang=CAGC,CTGC");
+			out.newLine();
+			String file = new File("testForward.gz").getCanonicalPath().replaceAll("\\\\", "\\\\\\\\");
+			out.write("sourceFileForward=" + file);
+			out.newLine();
+			out.write("barcodeFile=testBarcodes.txt");
+			out.newLine();
+			out.write("sourceFileReverse=");
+			out.newLine();
+			out.write("align=" + false);
+			out.newLine();
+			out.write("population=pop");
+			out.newLine();
+		}
+		
+		Demultiplexer.main(new String[] {"test.config"});
+		checkOutput(2, "foo", ".R1.fq.gz");
+		
+		// check nothing written to reverse file
+		try (BufferedReader reader = new BufferedReader(new InputStreamReader(
+				new GZIPInputStream(new FileInputStream("pop_bar.R2.fq.gz"))))) {
+			String line = "";
+			while ((line = reader.readLine()) != null) {
+				assert line.length() == 0;
+			}
+		}
+	}
 
 	@Test
 	public void demultiplexTest() throws Exception {

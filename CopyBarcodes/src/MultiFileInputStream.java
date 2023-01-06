@@ -1,3 +1,4 @@
+import java.io.ByteArrayInputStream;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -12,6 +13,9 @@ public class MultiFileInputStream extends InputStream {
 	private InflaterInputStream current = null;
 	
 	public static InputStream getStream(List<String> files) throws IOException {
+		if (files.isEmpty()) {
+			return new ByteArrayInputStream(new byte[] {});
+		}
 		if (files.size() == 1) {
 			return new GZIPInputStream(
 					new FileInputStream(files.get(0)));

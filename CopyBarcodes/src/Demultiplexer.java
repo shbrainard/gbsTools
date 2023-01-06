@@ -40,6 +40,7 @@ public class Demultiplexer {
 		PrefixTree barcodes = new PrefixTree(config);
 		InputStream iisFwd = MultiFileInputStream.getStream(forwardFile); 
 		InputStream iisRev = MultiFileInputStream.getStream(reverseFile);
+		boolean reverseMissing = reverseFile.isEmpty(); // in this case, just use the forward reads
 		
 		long approxLen = forwardFile.size() * new File(forwardFile.get(0)).length();
 		ProgressTracker tracker = config.getPrintProgress() ? new ByteBasedProgressTracker(approxLen) 
@@ -98,8 +99,9 @@ public class Demultiplexer {
 			int nPersistThreads = Math.min(Runtime.getRuntime().availableProcessors(), MAX_NUM_PERSIST_THREADS);
 			CountDownLatch persistFinished = new CountDownLatch(nPersistThreads);
 			ExecutorService exec = Executors.newFixedThreadPool(nPersistThreads + 1);
+			LoadConfig loadConfig = new LoadConfig(config.isFuzzyMatch(), config.isDebugOut(), reverseMissing, retainBehavior);
 			Future<?> load = exec.submit(() -> {
-				CopyBarcodes.doLoad(config.isFuzzyMatch(), config.isDebugOut(), retainBehavior, barcodes, stats, forward, reverse, availableReadPool, loadedReads);
+				CopyBarcodes.doLoad(loadConfig, barcodes, stats, forward, reverse, availableReadPool, loadedReads);
 			});
 			List<Future<?>> persists = new ArrayList<>();
 			for (int i = 0; i < nPersistThreads; i++) {
