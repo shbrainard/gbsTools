@@ -106,8 +106,11 @@ public class Demultiplexer {
 			List<Future<?>> persists = new ArrayList<>();
 			for (int i = 0; i < nPersistThreads; i++) {
 				persists.add(exec.submit(() -> {
-					doWrite(barcodeToOutputFile, availableReadPool, loadedReads, persistFinished,
-							debugOut, tracker);
+					try {
+					doWrite(barcodeToOutputFile, availableReadPool, loadedReads, debugOut, tracker);
+					} finally {
+						persistFinished.countDown();
+					}
 				}));
 			}
 			
@@ -161,7 +164,7 @@ public class Demultiplexer {
 	}
 
 	private static void doWrite(Map<String, OutputFile> barcodeToOutputFile, ArrayBlockingQueue<Read> availableReadPool,
-			ArrayBlockingQueue<Read> loadedReads, CountDownLatch persistFinished, BufferedWriter debugOut, ProgressTracker tracker) {
+			ArrayBlockingQueue<Read> loadedReads, BufferedWriter debugOut, ProgressTracker tracker) {
 		try {
 			while (true) {
 				Read read = loadedReads.take();
@@ -176,12 +179,10 @@ public class Demultiplexer {
 					Read read = loadedReads.take();
 					persistBarcodedRead(barcodeToOutputFile, read, debugOut);
 				}
-			} catch (InterruptedException | IOException e1) {
+			} catch (Exception e1) {
 				e1.printStackTrace();
-			} finally {
-				persistFinished.countDown();
 			}
-		} catch (IOException e) {
+		} catch (Exception e) {
 			e.printStackTrace();
 		}
 	}
