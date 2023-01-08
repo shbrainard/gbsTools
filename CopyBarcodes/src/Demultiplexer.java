@@ -135,7 +135,7 @@ public class Demultiplexer {
 		barcodeToOutputFile.values().forEach(file -> {
 			try {
 				file.close();
-			} catch (IOException e) {
+			} catch (Exception e) {
 				e.printStackTrace();
 			}
 		});
