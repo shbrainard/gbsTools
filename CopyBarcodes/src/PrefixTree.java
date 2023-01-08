@@ -19,12 +19,22 @@ public class PrefixTree {
 	public PrefixTree(Config config) {
 		overhangs.addAll(config.getOverhangs());
 		OVERHANG_LEN = overhangs.iterator().next().length();
+		checkOverhangsSameLength();
 		minQuality = config.getMinQuality();
 		MAX_BARCODE_LEN = 8 + OVERHANG_LEN;
 		fuzzyMatchStr = new char[MAX_BARCODE_LEN];
 	}
 
 	
+	private void checkOverhangsSameLength() {
+		for (String overhang : overhangs) {
+			if (overhang.length() != OVERHANG_LEN) {
+				throw new IllegalArgumentException("All overhangs must be the same length");
+			}
+		}
+	}
+
+
 	public void addBarcode(String barcode) {
 		for (String overhang : overhangs) {
 			addBarcodeRec(root, barcode + overhang, 0);
