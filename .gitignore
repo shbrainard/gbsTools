@@ -4,3 +4,4 @@ bin/
 *.gz
 *.txt
 .DS_Store
+CopyBarcodes/test.config
