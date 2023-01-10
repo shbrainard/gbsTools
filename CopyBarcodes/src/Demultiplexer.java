@@ -28,7 +28,7 @@ public class Demultiplexer {
 					+ " with the first two entries being <barcode>\t<sampleName>");
 			System.exit(-1);
 		}
-		Config config = Config.loadFromFile(args[0]);
+		Config config = Config.loadOptions(args);
 		
 		String popName = config.getPopulation();
 		List<String> forwardFile = config.getSourceFileForward();
@@ -46,7 +46,7 @@ public class Demultiplexer {
 		ProgressTracker tracker = config.getPrintProgress() ? new ByteBasedProgressTracker(approxLen) 
 				: new NoOpProgressTracker();
 		RetainBehavior retainBehavior = RetainBehaviors.getRetainBehavior(config.getPercentToRetain(), 
-				approxLen / 1024 * ByteBasedProgressTracker.GZIP_READ_PER_KB, config.retainByTruncating());
+				approxLen / 1024 * ByteBasedProgressTracker.GZIP_READ_PER_KB, config.isRetainByTruncating());
 		
 		ExecutorService progressThread = Executors.newSingleThreadExecutor();
 		Future<?> progressPrinter = progressThread.submit(() -> {

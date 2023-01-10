@@ -14,7 +14,7 @@ public class Downsampler {
 			System.out.println("Usage: <path to config file>.");
 			System.exit(-1);
 		}
-		Config config = Config.loadFromFile(args[0]);
+		Config config = Config.loadOptions(args);
 		
 		if (config.getSourceFileForward().size() == 0) {
 			if (config.getSourceFileInterleaved().size() != 1) {
@@ -22,7 +22,7 @@ public class Downsampler {
 			}
 			String sourceFileInterleaved = config.getSourceFileInterleaved().get(0);
 			RetainBehavior retainBehavior = RetainBehaviors.getRetainBehavior(config.getPercentToRetain(), 
-					new File(sourceFileInterleaved).length() / 1024 * ByteBasedProgressTracker.GZIP_READ_PER_KB / 2, config.retainByTruncating());
+					new File(sourceFileInterleaved).length() / 1024 * ByteBasedProgressTracker.GZIP_READ_PER_KB / 2, config.isRetainByTruncating());
 			String result = truncateFile(sourceFileInterleaved, 8, retainBehavior);
 			System.out.println("Output stored in " + result);
 		} else {
@@ -33,7 +33,7 @@ public class Downsampler {
 			String reverseFile = config.getSourceFileReverse().get(0);
 			
 			RetainBehavior retainBehavior = RetainBehaviors.getRetainBehavior(config.getPercentToRetain(), 
-					new File(forwardFile).length() / 1024 * ByteBasedProgressTracker.GZIP_READ_PER_KB, config.retainByTruncating());
+					new File(forwardFile).length() / 1024 * ByteBasedProgressTracker.GZIP_READ_PER_KB, config.isRetainByTruncating());
 			String result1 = truncateFile(forwardFile, 4, retainBehavior);
 			String result2 = truncateFile(reverseFile, 4, retainBehavior);
 			System.out.println("Output stored in " + result1 + " and " + result2);

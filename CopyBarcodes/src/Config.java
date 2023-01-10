@@ -1,4 +1,3 @@
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -7,7 +6,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
 import java.util.Set;
 
 /**
@@ -79,7 +77,7 @@ public class Config {
 		List<String> allPropLines = Files.readAllLines(Paths.get(file));
 		for (String arg : allPropLines) {
 			String[] parsed = arg.split("=");
-			props.put(parsed[0], parsed[1]);
+			props.put(parsed[0], parsed.length > 1 ? parsed[1] : "");
 		}		
 	}
 
@@ -88,26 +86,6 @@ public class Config {
 			String[] parsed = arg.split("=");
 			props.put(parsed[0], parsed[1]);
 		}		
-	}
-	
-	public static Config loadFromFile(String pathToFile) throws IOException {
-		Properties properties = new Properties();
-		properties.load(new FileInputStream(pathToFile));
-		
-		return new Config(((String)properties.getOrDefault("minQuality", "0")).charAt(0), 
-				Boolean.parseBoolean((String) properties.getOrDefault("align", "false")),
-				Boolean.parseBoolean((String)properties.getOrDefault("append", "false")),
-				Boolean.parseBoolean((String)properties.getOrDefault("fuzzyMatch", "true")),
-				Boolean.parseBoolean((String)properties.getOrDefault("debugOut", "false")),
-				(String)properties.getOrDefault("barcodeFile", ""),
-				getList((String)properties.getOrDefault("sourceFileForward", "")),
-				getList((String)properties.getOrDefault("sourceFileReverse", "")),
-				getList((String)properties.getOrDefault("sourceFileInterleaved", "")),
-				(String)properties.getOrDefault("population", ""),
-				((String)properties.getOrDefault("overhang", "")).split(","),
-				Integer.parseInt((String)properties.getOrDefault("percentToRetain", "100")),
-				Boolean.parseBoolean((String)properties.getOrDefault("printProgress", "false")),
-				Boolean.parseBoolean((String)properties.getOrDefault("retainByTruncating", "false")));
 	}
 	
 	private static List<String> getList(String list) {
@@ -194,17 +172,18 @@ public class Config {
 	public boolean getPrintProgress() {
 		return printProgress;
 	}
-	
-	public boolean retainByTruncating() {
+
+	public boolean isRetainByTruncating() {
 		return retainByTruncating;
 	}
-	
+
 	@Override
 	public String toString() {
 		return "Config [overhangs=" + overhangs + ", minQuality=" + minQuality + ", align=" + align + ", append="
 				+ append + ", fuzzyMatch=" + fuzzyMatch + ", debugOut=" + debugOut + ", barcodes=" + barcodes
 				+ ", sourceFileForward=" + sourceFileForward + ", sourceFileReverse=" + sourceFileReverse
-				+ ", sourceFileInterleaved=" + sourceFileInterleaved + ", population=" + population + ", percentToRetain=" + percentToRetain + ", printProgress=" + printProgress
-				+ ", retainByTruncating=" + retainByTruncating + "]";
+				+ ", sourceFileInterleaved=" + sourceFileInterleaved + ", population=" + population
+			    + ", percentToRetain=" + percentToRetain
+				+ ", retainByTruncating=" + retainByTruncating + ", printProgress=" + printProgress + "]";
 	}
 }

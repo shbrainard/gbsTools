@@ -4,7 +4,7 @@ public class PrefixTreeTest {
 	
 	@Test
 	public void testTree() throws Exception {
-		PrefixTree tree = new PrefixTree(Config.loadFromFile("default.config"));
+		PrefixTree tree = new PrefixTree(Config.loadOptions(new String[] {"default.config"}));
 		tree.addBarcode("CGA");
 		tree.addBarcode("GCAGCAGC");
 		
@@ -23,7 +23,7 @@ public class PrefixTreeTest {
 	
 	@Test
 	public void testFuzz() throws Exception {
-		PrefixTree tree = new PrefixTree(Config.loadFromFile("default.config"));
+		PrefixTree tree = new PrefixTree(Config.loadOptions(new String[] {"default.config"}));
 		tree.addBarcode("CGA");
 		tree.addBarcode("GCA");
 		tree.addBarcode("GCT");
