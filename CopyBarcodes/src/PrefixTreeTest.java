@@ -23,6 +23,7 @@ public class PrefixTreeTest {
 	
 	@Test
 	public void testFuzz() throws Exception {
+		//overhang=CAGC,CTGC
 		PrefixTree tree = new PrefixTree(Config.loadOptions(new String[] {"default.config"}));
 		tree.addBarcode("CGA");
 		tree.addBarcode("GCA");
@@ -33,14 +34,14 @@ public class PrefixTreeTest {
 		String match = tree.fuzzyMatch("CGACAGCT".toCharArray(), "FFFFFFFFFFF".toCharArray(), null);
 		assert match.equals("CGA");
 		
-		match = tree.fuzzyMatch("CGTCAGCT".toCharArray(), "FFFFFFFFFFF".toCharArray(), stats);
+		match = tree.fuzzyMatch("CGTCAGCT".toCharArray(), "FFJFFFFFFFF".toCharArray(), stats);
 		assert match.equals("");
 		assert stats.nSkippedQuality.get() == 1;
 		
-		match = tree.fuzzyMatch("CGTCAGCT".toCharArray(), "FF,FFFFFFFF".toCharArray(), null);
+		match = tree.fuzzyMatch("CGTCAGCT".toCharArray(), "FFFFFFFFFFF".toCharArray(), null);
 		assert match.equals("CGA");
 		
-		match = tree.fuzzyMatch("GCGCAGCT".toCharArray(), "FF,FFFFFFFF".toCharArray(), stats);
+		match = tree.fuzzyMatch("GCGCAGCT".toCharArray(), "FFFFFFFFFFF".toCharArray(), stats);
 		assert match.equals("");
 		assert stats.nSkippedDuplicate.get() == 1;
 	}
