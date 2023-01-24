@@ -64,3 +64,24 @@ This class downsamples FQ files.  It can either be passed a path to `sourceFileF
 `retainByTruncating` turns on or off random elimination. 
 
 Progress tracking is attempted, but may not be very accurate. 
+
+
+## Truncating
+
+TruncateReads will trim read and quality score length. Either pass it a config file or all arguments on the command line.
+
+Usage:
+file=<path to file to truncate>
+directory=<path to directory, where all files should be truncated>
+max_read_length=<maximum length of the read to keep>
+barcode_length=<length of the barcode prepended to the reads>
+
+All argument must be specific, except for file and directory - exactly one of those must be specified
+ 
+This assumes that each read is in the format
+<header line>
+<read with barcode>
+<metadata line>
+<quality scores>
+
+The output is stored in <filename>.truncated.gz
