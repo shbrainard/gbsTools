@@ -5,3 +5,6 @@ bin/
 *.txt
 .DS_Store
 CopyBarcodes/test.config
+
+# Per-machine settings, which can record command lines with tokens
+**/.claude/settings.local.json
